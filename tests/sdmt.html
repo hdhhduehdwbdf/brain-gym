@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>符号译码 · 加工速度</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.key-row{display:flex;justify-content:space-between;margin:14px 0 10px}
+.key-item{flex:1;text-align:center}
+.key-item .sym{font-size:26px;font-weight:800;margin-bottom:3px}
+.key-item .dig{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;margin:0 8px}
+
+.sd-stage{
+  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  border-radius:20px;padding:18px 14px;margin-bottom:12px;
+}
+.sd-current{text-align:center;margin-bottom:16px}
+.sd-current .lab{font-size:13px;color:var(--muted);margin-bottom:8px}
+.sd-symbol{font-size:clamp(52px,16vw,68px);font-weight:900;line-height:1.1}
+
+.sd-choices{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sd-ch{
+  padding:18px 0;border:none;border-radius:14px;background:var(--card2);
+  border:1px solid var(--line2);color:var(--text);font-size:24px;font-weight:800;
+  cursor:pointer;font-family:inherit;transition:transform .1s,background .12s;
+}
+.sd-ch:active{transform:scale(.93)}
+.sd-ch:disabled{opacity:.35}
+.sd-ch.right{background:rgba(52,201,139,.25);border-color:rgba(52,201,139,.55)}
+.sd-ch.wrong{background:rgba(229,72,77,.25);border-color:rgba(229,72,77,.55)}
+
+.sd-timer{
+  text-align:center;font-size:15px;color:var(--muted);margin-bottom:10px;
+}
+.sd-timer b{
+  font-size:26px;color:var(--text);font-variant-numeric:tabular-nums;font-weight:800;
+}
+.prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.prog-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));width:100%}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">符号译码</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:2px">
+    对照上方的<b style="color:var(--text)">符号-数字对照表</b>，60 秒内尽量多做
+  </p>
+
+  <div class="key-row" id="keyRow"></div>
+
+  <div class="sd-timer">剩余 <b id="timeLeft">60</b> 秒 · 已完成 <b id="doneN">0</b></div>
+  <div class="prog-bar"><i id="timeBar" style="width:100%"></i></div>
+
+  <div class="sd-stage">
+    <div class="sd-current">
+      <div class="lab">这个符号对应哪个数字？</div>
+      <div class="sd-symbol" id="curSym">?</div>
+    </div>
+    <div class="sd-choices" id="choices"></div>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart">开始 · 60 秒</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>符号译码测验（WAIS 数字符号 / SDMT，1940s 起成为智力量表核心分测验）——测<b style="color:var(--text)">加工速度</b>，即"查表-比对-输出"的流水线效率，是年龄最敏感的认知指标之一。<br>
+    <b>练什么：</b>信息处理速度。读文档扫一眼抓重点、快速核对数据，背后都是它。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最佳成绩</div><div class="value" id="bestN">--</div></div>
+    <div class="stat"><div class="label">本次</div><div class="value" id="thisN">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">成人平均 60 秒 40-60 个 · 越练越快</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var PAIRS = { '✳':3, '◆':7, '▲':1, '●':8, '■':4, '✚':6, '★':2, '▽':9 };
+  var DURATION = 60;
+
+  var symbols = Object.keys(PAIRS);
+  var el = {
+    keyRow: document.getElementById('keyRow'),
+    curSym: document.getElementById('curSym'),
+    choices: document.getElementById('choices'),
+    btnStart: document.getElementById('btnStart')
+  };
+
+  var running = false;
+  var correct = 0;
+  var cur = null;
+  var endT = 0;
+  var timerIv = null;
+
+  function renderKey(){
+    el.keyRow.innerHTML = symbols.map(function(s){
+      return '<div class="key-item"><div class="sym">' + s + '</div><div class="dig">' + PAIRS[s] + '</div></div>';
+    }).join('');
+  }
+
+  function newQuestion(){
+    cur = symbols[Math.floor(Math.random()*symbols.length)];
+    el.curSym.textContent = cur;
+    var opts = [cur];
+    while(opts().length < 4){
+      var d = 1 + Math.floor(Math.random()*9);
+      if(d !== cur && opts().indexOf(d) === -1) opts().push(d);
+    }
+    // shuffle
+    var arr = opts();
+    for(var i=arr.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = arr[i]; arr[i]=arr[j]; arr[j]=t;
+    }
+    el.choices.innerHTML = arr.map(function(d){
+      return '<button class="sd-ch" data-v="' + d + '">' + d + '</button>';
+    }).join('');
+    var cur = PAIRS[cur];
+  }
+  function opts(){ return _opts; }
+  var _opts = [];
+
+  function tick(){
+    var left = Math.max(0, (endT - Date.now())/1000);
+    document.getElementById('timeLeft').textContent = Math.ceil(left);
+    document.getElementById('timeBar').style.width = (left/DURATION*100) + '%';
+    if(left <= 0) finish();
+  }
+
+  function start(){
+    correct = 0;
+    _opts = [];
+    running = true;
+    el.btnStart.style.display = 'none';
+    document.getElementById('doneN').textContent = '0';
+    endT = Date.now() + DURATION*1000;
+    nextQ();
+    timerIv = setInterval(tick, 120);
+  }
+
+  var cur = '';
+  var _opts = [];
+
+  function nextQ(){
+    cur = symbols[Math.floor(Math.random()*symbols.length)];
+    el.curSym.textContent = cur;
+    _opts = [PAIRS[cur]];
+    while(_opts.length < 4){
+      var d = 1 + Math.floor(Math.random()*9);
+      if(d !== PAIRS[cur] && _opts.indexOf(d) === -1) _opts.push(d);
+    }
+    for(var i=_opts.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = _opts[i]; _opts[i]=_opts[j]; _opts[j]=t;
+    }
+    el.choices.innerHTML = _opts.map(function(d){
+      return '<button class="sd-ch" data-v="' + d + '">' + d + '</button>';
+    }).join('');
+  }
+
+  el.choices.addEventListener('click', function(e){
+    var b = e.target.closest('.sd-ch');
+    if(!b || !running) return;
+    var v = +b.dataset.v;
+    if(v === PAIRS[cur]){
+      correct++;
+      document.getElementById('doneN').textContent = correct;
+      if(navigator.vibrate) navigator.vibrate(10);
+    }else{
+      if(navigator.vibrate) navigator.vibrate(40);
+    }
+    nextQ();
+  });
+
+  function finish(){
+    running = false;
+    clearInterval(timerIv);
+    var record = { correct: correct };
+
+    var g = correct >= 55 ? { t:'处理速度飞快', c:'var(--green)' } :
+      correct >= 40 ? { t:'达到成人平均', c:'var(--blue)' } :
+      correct >= 25 ? { t:'还行', c:'var(--amber)' } : { t:'刚开始都这样', c:'var(--rose)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">60 秒译码</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + correct + '<span style="font-size:18px">个</span></div>';
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">正确率 ' + Math.round(correct/(correct+1)*100) + '% 以上 · 每次都努力超过上一次</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一轮</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); start(); };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      el.curSym.textContent = '?';
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStart').textContent = '再测一轮 · 60 秒';
+    };
+
+    BT.log('sdmt', record);
+    if(BT.reportScore) BT.reportScore('sdmt', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'sdmt'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = 0;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.correct != null && e.correct > best) best = e.correct;
+    });
+    document.getElementById('bestN').textContent = best || '--';
+    if(last) document.getElementById('thisN').textContent = last.correct;
+  }
+
+  el.btnStart.onclick = start;
+  renderKey();
+  refreshStats();
+  clearInterval(timerIv);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>舒尔特方格 · 注意力训练</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.grid-stage{
+  background:linear-gradient(180deg,#1A1F3A,#141830);
+  border:1px solid var(--line2);border-radius:20px;padding:10px;
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+  position:relative;overflow:hidden;
+}
+.grid{display:grid;gap:7px;grid-template-columns:repeat(5,1fr)}
+.cell{
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  border:none;border-radius:12px;background:#262C4C;color:#DFE4F2;
+  font-size:clamp(17px,5.2vw,23px);font-weight:800;font-variant-numeric:tabular-nums;
+  cursor:pointer;transition:background .12s,transform .1s,color .12s;
+  font-family:inherit;user-select:none;position:relative;
+}
+.cell:active{transform:scale(.94)}
+.cell.found{background:#1B2942;color:#3A4568;box-shadow:inset 0 0 0 1px rgba(90,140,255,.12)}
+.cell.next{background:linear-gradient(135deg,#2F9E6E,#34C98B);color:#062018;box-shadow:0 4px 18px rgba(52,201,139,.35)}
+.cell.wrong{background:#5A2233;color:#FF9DAF;animation:shake .3s}
+.cell.size6{font-size:clamp(14px,4.2vw,19px);border-radius:10px}
+.grid.g6{grid-template-columns:repeat(6,1fr);gap:5px}
+
+.timer-row{display:flex;align-items:baseline;justify-content:center;gap:3px;margin:16px 0 2px}
+.timer-big{font-size:clamp(46px,15vw,60px)}
+.meta-row{display:flex;justify-content:center;gap:22px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.meta-row b{color:var(--text);font-variant-numeric:tabular-nums}
+.best-banner{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:13px;color:var(--amber);margin-bottom:12px;min-height:18px;
+}
+.grade-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-left:6px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">舒尔特方格</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="seg" id="modeSeg" style="margin-bottom:10px">
+    <button data-mode="asc" class="active">正序 1→N</button>
+    <button data-mode="desc">倒序 N→1</button>
+    <button data-mode="color">变色干扰</button>
+  </div>
+
+  <div class="chip-row" style="margin-bottom:14px">
+    <button class="chip active" data-size="5">5×5 入门</button>
+    <button class="chip" data-size="6">6×6 进阶</button>
+    <button class="chip" data-size="7">7×7 挑战</button>
+  </div>
+
+  <div class="timer-row">
+    <span class="timer-big" id="timer">0.00</span><span class="timer-unit">秒</span>
+  </div>
+  <div class="meta-row">
+    <span>进度 <b id="progress">0/25</b></span>
+    <span>点错 <b id="errors">0</b></span>
+    <span>本轮最佳 <b id="roundBest">--</b></span>
+  </div>
+  <div class="best-banner" id="bestBanner"></div>
+
+  <div class="grid-stage">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <p class="status-line" id="status">点击数字 <span class="strong">1</span> 开始计时</p>
+
+  <button class="btn btn-ghost btn-block" id="reshuffle" style="margin-top:6px">重新打乱 · 换一组</button>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">正序最佳</div><div class="value" id="bestAsc">--</div></div>
+    <div class="stat"><div class="label">倒序最佳</div><div class="value" id="bestDesc">--</div></div>
+    <div class="stat"><div class="label">变色最佳</div><div class="value" id="bestColor">--</div></div>
+  </div>
+
+  <div class="section-title">训练记录</div>
+  <div class="record-list" id="recordList"><div class="empty">完成一组后自动保存</div></div>
+
+  <footer class="page-foot">标准参考：5×5 正序 20 秒内为优秀 · 30 秒内为良好</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var COLORS = ['#FF6B8A','#5B8CFF','#34C98B','#F0A64B','#8B7CFF','#4DD0E1'];
+
+  var el = {
+    grid: document.getElementById('grid'),
+    timer: document.getElementById('timer'),
+    status: document.getElementById('status'),
+    progress: document.getElementById('progress'),
+    errors: document.getElementById('errors'),
+    roundBest: document.getElementById('roundBest'),
+    bestBanner: document.getElementById('bestBanner'),
+    reshuffle: document.getElementById('reshuffle')
+  };
+
+  var mode = 'asc';
+  var size = 5;
+  var total = 25;
+  var numbers = [];
+  var colorMap = {};
+  var step = 0;
+  var errors = 0;
+  var startTime = null;
+  var running = false;
+  var raf = null;
+  var roundBestTime = null;
+
+  var REC_KEY = 'bt:schulte';
+  var records = BT.get('schulte', {});
+
+  function save(sec){
+    var t = BT.todayKey();
+    if(!records[t]) records[t] = { asc:null, desc:null, color:null, count:0 };
+    if(records[t][mode] == null || sec < records[t][mode]) records[t][mode] = sec;
+    records[t].count++;
+    BT.set('schulte', records);
+    BT.reportScore('schulte', { mode: mode, sec: sec });
+    stats();
+    listRecords();
+  }
+
+  function shuffle(arr){
+    for(var i=arr.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = arr[i]; arr[i]=arr[j]; arr[j]=t;
+    }
+    return arr;
+  }
+
+  function expected(){
+    return mode === 'desc' ? total - step : step + 1;
+  }
+
+  function build(){
+    total = size * size;
+    numbers = shuffle(Array.from({length:total}, function(_,i){ return i+1; }));
+    colorMap = {};
+    if(mode === 'color'){
+      numbers.forEach(function(n){ colorMap[n] = COLORS[Math.floor(Math.random()*COLORS.length)]; });
+    }
+    step = 0; errors = 0;
+    startTime = null; running = false; roundBestTime = null;
+    if(raf) cancelAnimationFrame(raf);
+    el.timer.textContent = '0.00';
+    el.roundBest.textContent = '--';
+    el.bestBanner.innerHTML = '';
+    el.grid.className = 'grid' + (size === 6 ? ' g6' : '');
+    el.reshuffle.textContent = '重新打乱 · 换一组';
+    render();
+  }
+
+  function render(){
+    el.grid.innerHTML = '';
+    numbers.forEach(function(n){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cell' + (size >= 6 ? ' size6' : '');
+      b.textContent = n;
+      if(mode === 'color') b.style.color = colorMap[n];
+      b.dataset.n = n;
+      b.addEventListener('click', function(){ tap(n, b); });
+      el.grid.appendChild(b);
+    });
+    paint();
+  }
+
+  function paint(){
+    var exp = expected();
+    Array.prototype.forEach.call(el.grid.children, function(c){
+      var n = +c.dataset.n;
+      var isFound = mode === 'desc' ? n > exp : n < exp;
+      if(step === total) isFound = true;
+      c.classList.toggle('found', isFound && n !== exp);
+      c.classList.toggle('next', n === exp && step < total);
+    });
+    el.progress.textContent = step + '/' + total;
+    el.errors.textContent = errors;
+    if(step >= total){
+      el.status.textContent = '已完成这一组';
+    }else{
+      el.status.innerHTML = '点击数字 <span class="strong">' + exp + '</span>' +
+        (mode === 'desc' ? '（倒序）' : mode === 'color' ? '（忽略颜色）' : '');
+    }
+  }
+
+  function tap(n, btn){
+    if(step >= total) return;
+    var exp = expected();
+    if(n !== exp){
+      errors++;
+      btn.classList.add('wrong');
+      setTimeout(function(){ btn.classList.remove('wrong'); }, 300);
+      if(navigator.vibrate) navigator.vibrate(30);
+      el.status.innerHTML = '看错了，要找的是 <span class="strong">' + exp + '</span>';
+      el.errors.textContent = errors;
+      return;
+    }
+    step++;
+    if(!running){
+      startTime = performance.now();
+      running = true;
+      tick();
+    }
+    if(step >= total){ finish(); }
+    else { paint(); }
+  }
+
+  function tick(){
+    if(!running) return;
+    el.timer.textContent = ((performance.now() - startTime)/1000).toFixed(2);
+    raf = requestAnimationFrame(tick);
+  }
+
+  function bestOf(m){
+    var b = null;
+    Object.keys(records).forEach(function(d){
+      var v = records[d][m];
+      if(v != null && (b === null || v < b)) b = v;
+    });
+    return b;
+  }
+
+  function grade(sec){
+    var base = { 5: [20, 30, 40], 6: [38, 55, 75], 7: [60, 85, 120] }[size] || [20,30,40];
+    if(mode !== 'asc'){ base = base.map(function(v){ return v * 1.25; }); }
+    if(sec <= base[0]) return { t:'优秀', c:'var(--green)' };
+    if(sec <= base[1]) return { t:'良好', c:'var(--blue)' };
+    if(sec <= base[2]) return { t:'及格', c:'var(--amber)' };
+    return { t:'继续练', c:'var(--rose)' };
+  }
+
+  function finish(){
+    running = false;
+    if(raf) cancelAnimationFrame(raf);
+    var sec = (performance.now() - startTime)/1000;
+    el.timer.textContent = sec.toFixed(2);
+    paint();
+    roundBestTime = sec;
+
+    var prev = bestOf(mode);
+    var isPB = prev === null || sec < prev;
+    var g = grade(sec);
+
+    save(sec);
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">' + size + '×' + size + ' · ' + (mode==='asc'?'正序':mode==='desc'?'倒序':'变色干扰') + '</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + sec.toFixed(2) + '<span style="font-size:18px">s</span></div>';
+    html += '<div class="grade">' + g.t + (errors ? ' · 点错 ' + errors + ' 次' : ' · 零失误') + '</div>';
+    html += '<div class="sub2">' + (isPB ? '新纪录！' : '个人最佳 ' + (prev/1000).toFixed(2) + 's') + '</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一组</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">留在这里</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    function close(){ ov.remove(); }
+    document.getElementById('ovAgain').onclick = function(){ close(); build(); };
+    document.getElementById('ovClose').onclick = close;
+    ov.addEventListener('click', function(e){ if(e.target === ov) close(); });
+
+    if(navigator.vibrate) navigator.vibrate([20, 40, 20]);
+    BT.log('schulte', { size:size, mode:mode, sec:+sec.toFixed(2), errors:errors });
+  }
+
+  function fmtSec(v){ return v == null ? '--' : v.toFixed(2); }
+
+  function stats(){
+    document.getElementById('bestAsc').textContent = fmtSec(bestOf('asc'));
+    document.getElementById('bestDesc').textContent = fmtSec(bestOf('desc'));
+    document.getElementById('bestColor').textContent = fmtSec(bestOf('color'));
+    var b = bestOf(mode);
+    el.roundBest.textContent = b == null ? '--' : fmtSec(b) + 's';
+  }
+
+  function listRecords(){
+    var box = document.getElementById('recordList');
+    var keys = Object.keys(records).sort().reverse().slice(0, 14);
+    if(!keys.length){ box.innerHTML = '<div class="empty">完成一组后自动保存</div>'; return; }
+    box.innerHTML = keys.map(function(k){
+      var r = records[k];
+      return '<div class="record-item"><span>' + k + '<span class="tag">' + r.count + '组</span></span>' +
+        '<span>正 ' + fmtSec(r.asc) + ' · 倒 ' + fmtSec(r.desc) + ' · 彩 ' + fmtSec(r.color) + '</span></div>';
+    }).join('');
+  }
+
+  /* ---- 事件 ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      mode = b.dataset.mode;
+      build();
+    };
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      size = +b.dataset.size;
+      build();
+    };
+  });
+
+  el.reshuffle.onclick = build;
+
+  build();
+  stats();
+  listRecords();
+})();
+</script>
+</body>
+</html>

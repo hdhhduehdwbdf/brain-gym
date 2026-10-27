@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>N-back · 工作记忆刷新</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.nb-stage{
+  height:clamp(200px,52vw,250px);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  border-radius:20px;margin:14px 0;position:relative;
+}
+.nb-letter{
+  font-size:clamp(56px,18vw,76px);font-weight:900;
+  animation:popIn .2s;
+}
+.nb-letter.dim{color:var(--faint);font-size:26px}
+
+.nb-ctrl{display:flex;gap:10px;margin-bottom:4px}
+.nb-btn{
+  flex:1;padding:22px 0;border:none;border-radius:16px;font-size:17px;font-weight:800;
+  cursor:pointer;font-family:inherit;transition:transform .1s;user-select:none;
+}
+.nb-btn.match{background:linear-gradient(135deg,#2FA977,#34C98B);color:#fff}
+.nb-btn:active{transform:scale(.95)}
+.nb-btn:disabled{opacity:.35}
+
+.nb-info{display:flex;justify-content:center;gap:22px;font-size:13px;color:var(--muted);margin:10px 0}
+.nb-info b{color:var(--text);font-variant-numeric:tabular-nums}
+
+.trial-dots{display:flex;gap:4px;justify-content:center;margin:10px 0;flex-wrap:wrap}
+.trial-dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.12)}
+.trial-dots i.hit{background:var(--green)}
+.trial-dots i.miss{background:var(--amber)}
+.trial-dots i.fa{background:var(--rose)}
+.trial-dots i.now{background:var(--blue);transform:scale(1.4)}
+
+.level-up{
+  text-align:center;font-size:14px;color:var(--green);font-weight:700;margin:8px 0;min-height:20px;
+}
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">N-back 训练</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="seg" id="levelSeg" style="margin-bottom:10px">
+    <button data-n="1">1-back 热身</button>
+    <button data-n="2" class="active">2-back 标准</button>
+    <button data-n="3">3-back 地狱</button>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    判断当前字母是否和 <b style="color:var(--text)"><span id="nLabel">2</span> 步之前</b>的相同<br>
+    是 → 点「匹配」，不是 → 什么都不做
+  </p>
+
+  <div class="nb-stage">
+    <div class="nb-letter dim" id="letter">?</div>
+  </div>
+
+  <div class="nb-info">
+    <span>第 <b id="trialN">0</b>/<b id="trialT">22</b></span>
+    <span>命中 <b id="hits">0</b></span>
+    <span>漏报 <b id="misses">0</b></span>
+  </div>
+  <div class="trial-dots" id="dots"></div>
+
+  <div class="nb-ctrl">
+    <button class="nb-btn match" id="btnMatch">匹配 ✓（与 N 步前相同）</button>
+  </div>
+  <div class="level-up" id="levelUp"></div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:10px">开始 22 轮</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>N-back 范式（1958）——工作记忆的"金标准"任务。研究表明每天 20 分钟 N-back 训练可提升流体智力（Jaeggi et al., 2008，虽有争议但工作记忆提升是稳定结论）。<br>
+    <b>练什么：</b>持续更新脑中内容的能力。开会记不住前几句、聊着聊着忘了话题，练的就是它。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最高级别</div><div class="value" id="bestLv">--</div></div>
+    <div class="stat"><div class="label">本次正确率</div><div class="value" id="thisAcc">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">字母每 2.2 秒一个 · 全程约 50 秒</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var LETTERS = ['B','F','H','K','M','Q','R','T'];
+  var N_TRIALS = 22;
+  var ISI = 2200;
+  var TARGET_RATE = 0.32;   // 约 1/3 是目标
+
+  var el = {
+    letter: document.getElementById('letter'),
+    btnMatch: document.getElementById('btnMatch'),
+    levelUp: document.getElementById('levelUp')
+  };
+
+  var n = 2;
+  var seq = [];
+  var isTarget = [];
+  var idx = -1;
+  var running = false;
+  var hits = 0, misses = 0, falseAlarms = 0;
+  var pressedThisTrial = false;
+  var trialTimer = null;
+  var results = []; // 'hit'|'miss'|'fa'|'cr'
+
+  function buildSeq(){
+    var s = [], t = [];
+    for(var i=0;i<n;i++){ s.push(rand()); t.push(false); }
+    var nTargets = Math.round((N_TRIALS - n) * TARGET_RATE);
+    var positions = [];
+    for(var j=n;j<N_TRIALS;j++) positions.push(j);
+    shuffle(positions);
+    var targetSet = {};
+    positions.slice(0, nTargets).forEach(function(p){ targetSet[p] = 1; });
+    for(var k=n;k<N_TRIALS;k++){
+      if(targetSet[k]){
+        s.push(s[k-n]);
+        t.push(true);
+      }else{
+        var c = rand();
+        // 避免意外成为目标
+        if(n > 0 && k-n >= 0 && s[k-n] === c) c = LETTERS[(LETTERS.indexOf(c)+3)%LETTERS.length];
+        s.push(c);
+        t.push(false);
+      }
+    }
+    return { s:s, t:t };
+    function rand(){ return LETTERS[Math.floor(Math.random()*LETTERS.length)]; }
+  }
+
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+    return a;
+  }
+
+  function start(){
+    var built = buildSeq();
+    seq = built.s; isTarget = built.t;
+    idx = -1;
+    hits = 0; misses = 0; falseAlarms = 0;
+    results = [];
+    running = true;
+    document.getElementById('btnStart').style.display = 'none';
+    el.btnMatch.disabled = false;
+    el.levelUp.textContent = '';
+    updateInfo();
+    renderDots();
+    nextTrial();
+  }
+
+  function nextTrial(){
+    idx++;
+    if(idx >= N_TRIALS){ finish(); return; }
+    pressedThisTrial = false;
+    el.letter.className = 'nb-letter';
+    el.letter.textContent = seq[idx];
+    updateInfo();
+    renderDots();
+    // 结算这一轮：在 ISI 结束时判断
+    clearTimeout(trialTimer);
+    trialTimer = setTimeout(function(){
+      settleTrial();
+      if(idx+1 < N_TRIALS) nextTrial();
+      else finish();
+    }, ISI);
+  }
+
+  function settleTrial(){
+    var pressed = pressedThisTrial;
+    var target = isTarget[idx];
+    if(target && pressed){ hits++; results[idx]='hit'; }
+    else if(target && !pressed){ misses++; results[idx]='miss'; }
+    else if(!target && pressed){ falseAlarms++; results[idx]='fa'; }
+    else { results[idx]='cr'; }
+    updateInfo();
+    renderDots();
+  }
+
+  function pressMatch(){
+    if(!running || idx < 0 || pressedThisTrial) return;
+    pressedThisTrial = true;
+  }
+
+  function updateInfo(){
+    document.getElementById('trialN').textContent = Math.min(idx+1, N_TRIALS);
+    document.getElementById('hits').textContent = hits;
+    document.getElementById('misses').textContent = misses;
+  }
+
+  function renderDots(){
+    var html = '';
+    for(var i=0;i<N_TRIALS;i++){
+      var cls = results[i] || (i === idx+1 ? 'now' : '');
+      html += '<i class="' + cls + '"></i>';
+    }
+    el.dots.innerHTML = html;
+  }
+
+  function finish(){
+    running = false;
+    clearTimeout(trialTimer);
+    el.btnMatch.disabled = true;
+    var total = N_TRIALS;
+    var correct = hits + (N_TRIALS - hits - misses - falseAlarms);
+    var acc = correct / N_TRIALS;
+    var record = { level: n, accuracy: acc, hits: hits, misses: misses, falseAlarms: falseAlarms };
+
+    // 升降级建议
+    var msg = '';
+    var nextN = n;
+    if(acc >= 0.85 && misses <= 1 && n < 4){ nextN = n+1; msg = '🎯 正确率 ' + Math.round(acc*100) + '%，建议升到 ' + nextN + '-back'; }
+    else if(acc < 0.6 && n > 1){ nextN = n-1; msg = '正确率偏低，建议退回 ' + nextN + '-back 打牢'; }
+    else { msg = '保持 ' + n + '-back 继续练'; }
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">' + n + '-back 完成</div>';
+    html += '<div class="big" style="color:' + (acc>=0.8?'var(--green)':acc>=0.6?'var(--blue)':'var(--amber)') + '">' + Math.round(acc*100) + '<span style="font-size:18px">%</span></div>';
+    html += '<div class="grade">命中 ' + hits + ' · 漏报 ' + misses + ' · 误报 ' + falseAlarms + '</div>';
+    html += '<div class="sub2">' + msg + '</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一轮</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){
+      ov.remove();
+      if(nextN !== n) setLevel(nextN);
+      start();
+    };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      el.letter.className = 'nb-letter dim';
+      el.letter.textContent = '?';
+      document.getElementById('btnStart').style.display = 'block';
+    };
+
+    BT.log('nback', record);
+    if(BT.reportScore) BT.reportScore('nback', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function setLevel(v){
+    n = v;
+    document.getElementById('nLabel').textContent = n;
+    Array.prototype.forEach.call(document.querySelectorAll('#levelSeg button'), function(b){
+      b.classList.toggle('active', +b.dataset.n === n);
+    });
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'nback'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = 0;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.level != null && e.level > best) best = e.level;
+    });
+    document.getElementById('bestLv').textContent = best ? best + '-back' : '--';
+    if(last) document.getElementById('thisAcc').textContent = Math.round(last.accuracy*100) + '%';
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('#levelSeg button'), function(b){
+    b.onclick = function(){
+      if(running) return;
+      setLevel(+b.dataset.n);
+    };
+  });
+
+  el.btnMatch.onclick = pressMatch;
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space'){ e.preventDefault(); pressMatch(); }
+  });
+
+  document.getElementById('btnStart').onclick = start;
+  refreshStats();
+})();
+</script>
+</body>
+</html>

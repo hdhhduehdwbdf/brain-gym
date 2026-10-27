@@ -1,0 +1,132 @@
+/* ===== 脑力健身房 · 共享设计系统 ===== */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0D101F;--bg2:#12162A;--card:#171B30;--card2:#1D2240;
+  --line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.12);
+  --text:#EDEFF7;--muted:#8B93AC;--faint:#5A6280;
+  --blue:#5B8CFF;--green:#34C98B;--violet:#8B7CFF;--amber:#F0A64B;--rose:#FF6B8A;
+  --danger:#FF6B8A;--radius:18px;
+}
+html{touch-action:manipulation}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(1200px 600px at 50% -10%,#1A2142 0%,var(--bg) 55%);
+  color:var(--text);min-height:100vh;
+  padding-top:env(safe-area-inset-top);
+}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1}
+.wrap{max-width:520px;margin:0 auto;padding:14px 18px calc(28px + env(safe-area-inset-bottom))}
+
+/* ---- 顶栏 ---- */
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 0 14px}
+.topbar .back{
+  width:38px;height:38px;flex:0 0 38px;border-radius:12px;background:var(--card);
+  border:1px solid var(--line);color:var(--text);font-size:17px;text-decoration:none;
+  display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.topbar .back:active{transform:scale(.92)}
+.topbar .tb-title{font-size:17px;font-weight:700;flex:1}
+.topbar .tb-link{font-size:13px;color:var(--muted);text-decoration:none;padding:6px 4px}
+.topbar .tb-link:active{color:var(--text)}
+
+/* ---- 排版 ---- */
+h1.hero-title{font-size:30px;font-weight:800;letter-spacing:.5px}
+.section-title{font-size:15px;font-weight:700;color:var(--muted);margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:"";flex:1;height:1px;background:var(--line)}
+.sub{font-size:13px;color:var(--muted)}
+
+/* ---- 卡片 ---- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+
+/* ---- 按钮 ---- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;
+  padding:14px 22px;color:#fff;transition:transform .12s,opacity .12s;user-select:none;
+  font-family:inherit;text-decoration:none;
+}
+.btn:active:not(:disabled){transform:scale(.96)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,#4A7CFF,#6E5BFF);box-shadow:0 8px 24px rgba(90,120,255,.25)}
+.btn-ghost{background:var(--card2);border:1px solid var(--line2);color:var(--text)}
+.btn-block{display:flex;width:100%}
+.btn-sm{padding:9px 16px;font-size:14px;border-radius:11px}
+.btn-success{background:linear-gradient(135deg,#2FA977,#34C98B)}
+.btn-danger{background:linear-gradient(135deg,#E05573,#FF6B8A)}
+
+/* ---- chips ---- */
+.chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  padding:9px 15px;border-radius:999px;background:var(--card);border:1px solid var(--line2);
+  color:var(--muted);font-size:13.5px;cursor:pointer;transition:.15s;user-select:none;font-family:inherit;
+}
+.chip:active{transform:scale(.95)}
+.chip.active,.chip:hover{color:var(--text);border-color:rgba(120,140,255,.5);background:#1B2140}
+
+/* ---- 分段选择器 ---- */
+.seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:5px}
+.seg button{flex:1;padding:10px 0;border:none;border-radius:9px;background:transparent;color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+.seg button.active{background:#2A3155;color:var(--text)}
+
+/* ---- 输入 ---- */
+.input{
+  width:100%;background:var(--card2);border:1px solid var(--line2);border-radius:13px;
+  color:var(--text);font-size:16px;padding:13px 15px;font-family:inherit;outline:none;transition:border-color .15s;
+}
+.input:focus{border-color:rgba(120,140,255,.6)}
+.input::placeholder{color:var(--faint)}
+
+/* ---- 统计 ---- */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 8px;text-align:center}
+.stat .label{font-size:12px;color:var(--muted);margin-bottom:5px}
+.stat .value{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* ---- 记录列表 ---- */
+.record-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto}
+.record-item{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:13.5px;color:#C6CCDD}
+.record-item .tag{font-size:11px;color:var(--faint);background:var(--card2);border-radius:6px;padding:2px 7px;margin-left:6px}
+.empty{color:var(--faint);font-size:13.5px;text-align:center;padding:22px 0}
+
+/* ---- 完成遮罩 ---- */
+.overlay{
+  position:fixed;inset:0;background:rgba(8,10,22,.82);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;z-index:50;padding:24px;
+  animation:fadeIn .25s;
+}
+.overlay-card{background:var(--card);border:1px solid var(--line2);border-radius:22px;padding:30px 26px;width:100%;max-width:360px;text-align:center;animation:popIn .3s}
+.overlay-card .big{font-size:44px;font-weight:800;font-variant-numeric:tabular-nums;margin:8px 0 2px}
+.overlay-card .grade{font-size:16px;font-weight:700;margin-bottom:4px}
+.overlay-card .sub2{font-size:13px;color:var(--muted);margin-bottom:20px}
+.overlay-actions{display:flex;flex-direction:column;gap:10px}
+
+/* ---- 计时大数字 ---- */
+.timer-big{font-size:58px;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;letter-spacing:1px}
+.timer-unit{font-size:15px;color:var(--muted);font-weight:600;margin-left:4px}
+
+/* ---- 状态行 ---- */
+.status-line{text-align:center;font-size:14.5px;color:var(--muted);min-height:22px;margin:10px 0}
+.status-line .strong{color:var(--text);font-weight:800}
+
+/* ---- 动画 ---- */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{0%{opacity:0;transform:scale(.85)}100%{opacity:1;transform:scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.fadeUp{animation:fadeUp .35s ease both}
+.shake{animation:shake .3s}
+.pulse{animation:pulse 1.2s infinite}
+
+/* ---- 页脚 ---- */
+footer.page-foot{text-align:center;color:var(--faint);font-size:12px;margin-top:30px;line-height:1.8}
+
+/* ---- 滚动条 ---- */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+
+/* ---- 强调色工具 ---- */
+.acc-green{color:var(--green)}.acc-blue{color:var(--blue)}.acc-violet{color:var(--violet)}
+.acc-amber{color:var(--amber)}.acc-rose{color:var(--rose)}
+.bg-green{background:var(--green)}.bg-blue{background:var(--blue)}.bg-violet{background:var(--violet)}
+.bg-amber{background:var(--amber)}.bg-rose{background:var(--rose)}

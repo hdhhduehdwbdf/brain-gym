@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>表达高压舱 · 被点名不再空白</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.qcard{
+  background:linear-gradient(155deg,#26203F,#191C33);
+  border:1px solid rgba(139,124,255,.28);border-radius:20px;padding:22px 20px;
+  position:relative;overflow:hidden;
+}
+.qcard::after{
+  content:"";position:absolute;right:-40px;top:-40px;width:130px;height:130px;border-radius:50%;
+  background:radial-gradient(circle,rgba(139,124,255,.18),transparent 70%);
+}
+.q-label{font-size:12px;color:var(--violet);font-weight:700;letter-spacing:1px;margin-bottom:10px}
+.q-text{font-size:19px;font-weight:700;line-height:1.6}
+.q-scene{font-size:12.5px;color:var(--muted);margin-top:10px}
+
+.big-timer{
+  text-align:center;font-size:clamp(56px,18vw,76px);font-weight:800;
+  font-variant-numeric:tabular-nums;line-height:1.05;margin:16px 0 2px;
+  transition:color .3s;
+}
+.big-timer.warn{color:var(--amber)}
+.big-timer.danger{color:var(--rose);animation:pulse 1s infinite}
+.timer-label{text-align:center;font-size:13.5px;color:var(--muted);min-height:20px}
+
+.progress-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:14px 0}
+.progress-bar i{display:block;height:100%;background:linear-gradient(90deg,#5B8CFF,#8B7CFF);width:0;transition:width .2s linear}
+
+.struct{
+  display:flex;gap:8px;margin:14px 0 0;
+}
+.struct-item{
+  flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:10px 8px;text-align:center;
+}
+.struct-item .k{font-size:11px;color:var(--faint);margin-bottom:3px}
+.struct-item .v{font-size:13px;font-weight:700}
+.struct-item.on{border-color:rgba(91,140,255,.5);background:rgba(91,140,255,.1)}
+
+.rate-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.rate-row .lbl{font-size:13px;color:var(--muted);flex:0 0 72px}
+.stars{display:flex;gap:6px;flex:1}
+.stars button{
+  flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:var(--card2);
+  color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;
+}
+.stars button.sel{background:rgba(91,140,255,.2);border-color:rgba(91,140,255,.6);color:#A8C0FF}
+
+.tips-box{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.85;margin-top:16px;
+}
+.tips-box b{color:var(--text)}
+.tips-box .em{color:var(--amber)}
+
+.rec-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rose);
+  margin-right:6px;animation:pulse 1s infinite;
+}
+.audio-wrap{margin-top:12px}
+.audio-wrap audio{width:100%;height:38px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">表达高压舱</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="chip-row" style="margin-bottom:14px">
+    <button class="chip active" data-pack="meeting">会议被点名</button>
+    <button class="chip" data-pack="suggest">给建议类</button>
+    <button class="chip" data-pack="challenge">被质疑类</button>
+  </div>
+
+  <!-- 待机 -->
+  <section id="stageIdle">
+    <div class="qcard">
+      <div class="q-label">即将面对的问题</div>
+      <div class="q-text" id="qText">点击下方按钮抽一道题</div>
+      <div class="q-scene" id="qScene">规则：10 秒准备 → 开口说 60 秒 → 自评复盘</div>
+    </div>
+    <button class="btn btn-primary btn-block" id="btnDraw" style="margin-top:16px">抽一道题 · 开始</button>
+
+    <div class="tips-box">
+      <b>这个练习解决什么：</b>不是让你反应更快，是让"开口"变成不用想的动作。<br>
+      <b>10 秒准备只做一件事：</b>在心里定住<span class="em">第一句话</span>，别在脑子里排练整段。<br>
+      <b>开口就用结构：</b>结论 → 依据 → 动作。剩下的边说边补。
+    </div>
+  </section>
+
+  <!-- 准备阶段 -->
+  <section id="stagePrep" style="display:none">
+    <div class="qcard">
+      <div class="q-label">准备中</div>
+      <div class="q-text" id="qText2"></div>
+      <div class="q-scene" id="qScene2"></div>
+    </div>
+    <div class="big-timer" id="prepTimer">10</div>
+    <div class="timer-label">秒后必须开口，别想了</div>
+    <div class="progress-bar"><i id="prepBar" style="width:100%"></i></div>
+    <button class="btn btn-primary btn-block" id="btnSpeakNow" style="margin-top:6px">我准备好了 · 现在开说</button>
+  </section>
+
+  <!-- 说话阶段 -->
+  <section id="stageSpeak" style="display:none">
+    <div class="qcard">
+      <div class="q-label"><span class="rec-dot"></span>正在说</div>
+      <div class="q-text" id="qText3" style="font-size:16px"></div>
+    </div>
+    <div class="big-timer" id="speakTimer">0:00</div>
+    <div class="timer-label" id="speakLabel">盯着结构说，卡住就跳到下一块</div>
+    <div class="structure-bar">
+      <div class="struct">
+        <div class="struct-item" data-k="0"><div class="k">第一步</div><div class="v">结论</div></div>
+        <div class="struct-item" data-k="1"><div class="k">第二步</div><div class="v">依据</div></div>
+        <div class="struct-item" data-k="2"><div class="k">第三步</div><div class="v">动作</div></div>
+      </div>
+    </div>
+    <div class="progress-bar"><i id="speakBar" style="width:0"></i></div>
+    <button class="btn btn-danger btn-block" id="btnStopSpeak" style="margin-top:6px">说完了</button>
+  </section>
+
+  <!-- 复盘 -->
+  <section id="stageReview" style="display:none">
+    <div class="qcard" style="margin-bottom:14px">
+      <div class="q-label">复盘</div>
+      <div class="q-text" style="font-size:15px" id="reviewQ"></div>
+      <div class="q-scene" id="reviewStat"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="rate-row">
+        <div class="lbl">开口速度</div>
+        <div class="stars" data-dim="speed">
+          <button data-v="1">很卡</button><button data-v="2">一般</button><button data-v="3">顺畅</button>
+        </div>
+      </div>
+      <div class="rate-row">
+        <div class="lbl">结构清晰</div>
+        <div class="stars" data-dim="struct">
+          <button data-v="1">乱</button><button data-v="2">还行</button><button data-v="3">清楚</button>
+        </div>
+      </div>
+      <div class="rate-row" style="margin-bottom:0">
+        <div class="lbl">内容有料</div>
+        <div class="stars" data-dim="content">
+          <button data-v="1">空泛</button><button data-v="2">一般</button><button data-v="3">有干货</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="audioSlot" class="audio-wrap"></div>
+
+    <button class="btn btn-primary btn-block" id="btnSaveReview" style="margin-top:14px">保存这次练习</button>
+    <button class="btn btn-ghost btn-block" id="btnSkipReview" style="margin-top:8px">再来一次</button>
+  </section>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">练习次数</div><div class="value" id="sessions">0</div></div>
+    <div class="stat"><div class="label">平均自评</div><div class="value" id="avgScore">--</div></div>
+    <div class="stat"><div class="label">今日</div><div class="value" id="todayN">0</div></div>
+  </div>
+
+  <div class="section-title">练习记录</div>
+  <div class="record-list" id="recordList"><div class="empty">完成一次后自动保存</div></div>
+
+  <footer class="page-foot">每天 1 次就有效 · 关键是每次都真的开口</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var PACKS = {
+    meeting: [
+      { q:'张总：小王，这事你怎么看？', s:'会议中突然被点名，所有人看向你' },
+      { q:'你觉得我们这个季度最大的问题是什么？', s:'月度复盘会，领导直接点名问你' },
+      { q:'这个方案你参与了吗？说说你的想法。', s:'方案评审会，你只是配合但被问意见' },
+      { q:'如果让你来负责这块，你第一步做什么？', s:'领导试探你有没想法' },
+      { q:'上周那个问题解决得怎么样？', s:'周会进度的突然追问' }
+    ],
+    suggest: [
+      { q:'针对认知评测，给点建议？', s:'征集意见环节，需要你说出有指导性的内容' },
+      { q:'你觉得这个流程还能怎么优化？', s:'流程改造讨论会' },
+      { q:'我们复盘一下，下次怎么能做得更好？', s:'项目复盘，需要具体建议不是套话' },
+      { q:'你有什么想法，随便说。', s:'最怕的开放式提问' }
+    ],
+    challenge: [
+      { q:'这个数据不太对吧？你确定吗？', s:'你的结论被当场质疑' },
+      { q:'别人都不同意你，你还坚持吗？', s:'观点冲突，需要守住立场又不硬顶' },
+      { q:'你说的这些，跟自己部门有什么关系？', s:'跨部门会议上被反问' },
+      { q:'为什么上次说的没做到？', s:'被追责式提问' }
+    ]
+  };
+
+  var PREP_SECONDS = 10;
+  var SPEAK_SECONDS = 60;
+
+  var state = {
+    pack: 'meeting',
+    q: null,
+    prepTimer: null,
+    speakTimer: null,
+    speakStart: 0,
+    speakDuration: 0,
+    stream: null,
+    recorder: null,
+    chunks: [],
+    audioURL: null,
+    ratings: { speed: 0, struct: 0, content: 0 }
+  };
+
+  var store = BT.get('pressure', { log: [] });
+
+  function $(id){ return document.getElementById(id); }
+
+  function show(stage){
+    ['stageIdle','stagePrep','stageSpeak','stageReview'].forEach(function(s){
+      $(s).style.display = (s === stage) ? 'block' : 'none';
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function drawQuestion(){
+    var pool = PACKS[state.pack];
+    var q = pool[Math.floor(Math.random() * pool.length)];
+    state.q = q;
+    $('qText').textContent = q.q;
+    $('qScene').textContent = q.s + ' · 规则：10 秒准备 → 开口说 60 秒';
+    $('qText2').textContent = q.q;
+    $('qScene2').textContent = q.s;
+    $('qText3').textContent = q.q;
+  }
+
+  function startPrep(){
+    if(!state.q) drawQuestion();
+    show('stagePrep');
+    var left = PREP_SECONDS;
+    $('prepTimer').textContent = left;
+    $('prepTimer').className = 'big-timer';
+    $('prepBar').style.width = '100%';
+
+    clearInterval(state.prepTimer);
+    state.prepTimer = setInterval(function(){
+      left--;
+      $('prepTimer').textContent = Math.max(left, 0);
+      $('prepBar').style.width = (Math.max(left,0) / PREP_SECONDS * 100) + '%';
+      if(left <= 3) $('prepTimer').className = 'big-timer warn';
+      if(left <= 0){
+        clearInterval(state.prepTimer);
+        startSpeak();
+      }
+    }, 1000);
+  }
+
+  function startSpeak(){
+    clearInterval(state.prepTimer);
+    show('stageSpeak');
+    state.speakStart = Date.now();
+    state.speakDuration = 0;
+    $('speakTimer').textContent = '0:00';
+    $('speakTimer').className = 'big-timer';
+    $('speakBar').style.width = '0%';
+    $('speakLabel').textContent = '盯着结构说，卡住就跳到下一块';
+
+    // 结构提示 8 秒轮换
+    var seq = [0,1,2], si = 0;
+    highlightStruct(0);
+    var structIv = setInterval(function(){
+      si = (si + 1) % 3;
+      highlightStruct(seq[si]);
+    }, 12000);
+    state.structIv = structIv;
+
+    clearInterval(state.speakTimer);
+    state.speakTimer = setInterval(function(){
+      var s = Math.floor((Date.now() - state.speakStart) / 1000);
+      state.speakDuration = s;
+      $('speakTimer').textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+      var pct = Math.min(s / SPEAK_SECONDS * 100, 100);
+      $('speakBar').style.width = pct + '%';
+      $('speakTimer').className = 'big-timer' + (s >= SPEAK_SECONDS ? ' warn' : s >= SPEAK_SECONDS * 0.7 ? ' warn' : '');
+      if(s >= SPEAK_SECONDS){
+        $('speakLabel').textContent = '已经说满 60 秒了，可以收尾';
+      }
+    }, 250);
+
+    startRecording();
+  }
+
+  function highlightStruct(i){
+    var items = document.querySelectorAll('.struct-item');
+    Array.prototype.forEach.call(items, function(it, idx){
+      it.classList.toggle('on', idx === i);
+    });
+  }
+
+  function stopSpeak(){
+    clearInterval(state.speakTimer);
+    clearInterval(state.structIv);
+    state.speakDuration = Math.floor((Date.now() - state.speakStart) / 1000);
+    stopRecording();
+    showReview();
+  }
+
+  function showReview(){
+    show('stageReview');
+    $('reviewQ').textContent = state.q.q;
+    $('reviewStat').textContent = '本次开口时长 ' + state.speakDuration + ' 秒';
+    state.ratings = { speed:0, struct:0, content:0 };
+    Array.prototype.forEach.call(document.querySelectorAll('.stars button'), function(b){
+      b.classList.remove('sel');
+    });
+    $('audioSlot').innerHTML = '';
+  }
+
+  /* ---- 录音（可选，环境不支持就静默跳过） ---- */
+  function startRecording(){
+    if(!navigator.mediaDevices || !window.MediaRecorder) return;
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream){
+      state.stream = stream;
+      state.chunks = [];
+      try{
+        state.recorder = new MediaRecorder(stream);
+      }catch(e){ return; }
+      state.recorder.ondataavailable = function(e){
+        if(e.data && e.data.size > 0) state.chunks.push(e.data);
+      };
+      state.recorder.onstop = function(){
+        if(state.chunks.length){
+          var blob = new Blob(state.chunks, { type: state.chunks[0].type || 'audio/webm' });
+          state.audioURL = URL.createObjectURL(blob);
+          $('audioSlot').innerHTML = '<div class="sub" style="margin-bottom:6px">回听一下，重点听语速和口头禅</div>' +
+            '<audio controls src="' + state.audioURL + '"></audio>';
+        }
+        if(state.stream){ state.stream.getTracks().forEach(function(t){ t.stop(); }); state.stream = null; }
+      };
+      state.recorder.start();
+      if(navigator.vibrate) navigator.vibrate(15);
+    }).catch(function(){ /* 用户拒绝麦克风或环境不支持：只计时 */ });
+  }
+
+  function stopRecording(){
+    if(state.recorder && state.recorder.state === 'recording'){
+      try{ state.recorder.stop(); }catch(e){}
+    }else if(state.stream){
+      state.stream.getTracks().forEach(function(t){ t.stop(); });
+      state.stream = null;
+    }
+  }
+
+  function saveReview(){
+    var r = state.ratings;
+    var sum = r.speed + r.struct + r.content;
+    if(sum === 0){
+      // 没自评也能存，按中性算
+    }
+    store.log = store.log || [];
+    store.log.push({
+      date: BT.todayKey(),
+      q: state.q.q,
+      pack: state.pack,
+      duration: state.speakDuration,
+      speed: r.speed, struct: r.struct, content: r.content,
+      rating: sum ? (sum / 3) : 2
+    });
+    BT.set('pressure', store);
+    BT.reportScore('pressure', {
+      q: state.q.q, pack: state.pack, duration: state.speakDuration,
+      speed: r.speed, struct: r.struct, content: r.content,
+      rating: sum ? (sum / 3) : 2
+    });
+    BT.log('pressure', { duration: state.speakDuration });
+    refreshStats();
+    listRecords();
+    nextRound();
+  }
+
+  function nextRound(){
+    drawQuestion();
+    show('stageIdle');
+    $('btnDraw').textContent = '再来一道 · 继续';
+  }
+
+  function refreshStats(){
+    var log = store.log || [];
+    $('sessions').textContent = log.length;
+    if(log.length){
+      var s = 0;
+      log.forEach(function(r){ s += (r.rating || 0); });
+      $('avgScore').textContent = (s / log.length).toFixed(1);
+    }else{
+      $('avgScore').textContent = '--';
+    }
+    $('todayN').textContent = log.filter(function(r){ return r.date === BT.todayKey(); }).length;
+  }
+
+  function listRecords(){
+    var box = $('recordList');
+    var log = store.log || [];
+    if(!log.length){ box.innerHTML = '<div class="empty">完成一次后自动保存</div>'; return; }
+    box.innerHTML = log.slice(-12).reverse().map(function(r){
+      return '<div class="record-item"><span>' + r.date + ' · ' + r.duration + 's' +
+        '<span class="tag">' + (r.pack === 'meeting' ? '会议' : r.pack === 'suggest' ? '建议' : '质疑') + '</span></span>' +
+        '<span>自评 ' + (r.rating || 0).toFixed(1) + '</span></div>';
+    }).join('');
+  }
+
+  /* ---- 绑定 ---- */
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      state.pack = b.dataset.pack;
+      state.q = null;
+      drawQuestion();
+    };
+  });
+
+  $('btnDraw').onclick = function(){
+    drawQuestion();
+    startPrep();
+  };
+  $('btnSpeakNow').onclick = startSpeak;
+  $('btnStopSpeak').onclick = stopSpeak;
+  $('btnSaveReview').onclick = saveReview;
+  $('btnSkipReview').onclick = function(){ nextRound(); };
+
+  Array.prototype.forEach.call(document.querySelectorAll('.stars'), function(group){
+    var dim = group.dataset.dim;
+    Array.prototype.forEach.call(group.querySelectorAll('button'), function(b){
+      b.onclick = function(){
+        Array.prototype.forEach.call(group.querySelectorAll('button'), function(x){ x.classList.remove('sel'); });
+        b.classList.add('sel');
+        state.ratings[dim] = +b.dataset.v;
+      };
+    });
+  });
+
+  drawQuestion();
+  refreshStats();
+  listRecords();
+})();
+</script>
+</body>
+</html>

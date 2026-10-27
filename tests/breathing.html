@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>4-7-8 呼吸 · 专注力与减压</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.breath-stage{
+  height:clamp(280px,68vw,340px);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;position:relative;margin:10px 0 6px;
+}
+.orb-wrap{position:relative;width:200px;height:200px;display:flex;align-items:center;justify-content:center}
+.orb{
+  width:140px;height:140px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#7FA4FF,#4A6BFF 55%,#2C43B0);
+  box-shadow:0 0 60px rgba(91,140,255,.45),inset 0 -8px 30px rgba(0,0,0,.25);
+  transition:transform 1s cubic-bezier(.4,0,.3,1),background 1s,box-shadow 1s;
+  display:flex;align-items:center;justify-content:center;
+}
+.orb.inhale{transform:scale(1.42);box-shadow:0 0 90px rgba(91,200,255,.55),inset 0 -8px 30px rgba(0,0,0,.2)}
+.orb.hold{transform:scale(1.42);background:radial-gradient(circle at 35% 30%,#B58BFF,#8B5BFF 55%,#543BA8)}
+.orb.exhale{transform:scale(.92);background:radial-gradient(circle at 35% 30%,#5BD9A8,#2FA977 55%,#1C6E51);box-shadow:0 0 50px rgba(52,201,139,.35)}
+.orb-ring{
+  position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,255,255,.1);
+}
+.orb-ring::before{
+  content:"";position:absolute;inset:-14px;border-radius:50%;
+  border:1px dashed rgba(255,255,255,.09);
+  animation:spin 22s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.breathe-word{
+  position:absolute;font-size:15px;font-weight:700;color:rgba(255,255,255,.9);
+  letter-spacing:2px;text-shadow:0 2px 10px rgba(0,0,0,.4);
+  pointer-events:none;transition:opacity .5s;
+}
+.breathe-count{
+  text-align:center;font-size:clamp(40px,12vw,52px);font-weight:800;
+  font-variant-numeric:tabular-nums;line-height:1;margin-top:6px;
+}
+.phase-label{font-size:14px;color:var(--muted);text-align:center;margin-bottom:2px;min-height:20px}
+
+.cycle-dots{display:flex;gap:7px;justify-content:center;margin:14px 0}
+.cycle-dots i{
+  width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);transition:.3s;
+}
+.cycle-dots i.done{background:var(--green);box-shadow:0 0 10px rgba(52,201,139,.6)}
+.cycle-dots i.now{background:var(--blue);transform:scale(1.4)}
+
+.hint-card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.7;margin-top:16px;
+}
+.hint-card b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">4-7-8 呼吸</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="seg" id="presetSeg" style="margin-bottom:8px">
+    <button data-p="478" class="active">4-7-8 助眠</button>
+    <button data-p="44">4-4 平衡</button>
+    <button data-p="box">4-4-4-4 方盒</button>
+  </div>
+  <p class="sub" style="text-align:center;margin-bottom:6px" id="presetDesc">吸 4 秒 · 憋 7 秒 · 呼 8 秒 · 做 4 轮</p>
+
+  <div class="breath-stage">
+    <div class="orb-wrap">
+      <div class="orb-ring"></div>
+      <div class="orb" id="orb"></div>
+      <div class="breathe-word" id="breatheWord"></div>
+    </div>
+    <div class="breathe-count" id="count">4</div>
+  </div>
+
+  <p class="phase-label" id="phaseLabel">准备好后点击开始</p>
+  <div class="cycle-dots" id="dots"></div>
+
+  <button class="btn btn-primary btn-block" id="btnMain">开始 · 放松一下</button>
+  <button class="btn btn-ghost btn-block" id="btnStop" style="margin-top:8px;display:none">结束</button>
+
+  <div class="hint-card">
+    <b>什么时候用：</b>开会前 3 组 ≈ 1 分钟，被点名后当场做一次也能快速拉回前额叶。<br>
+    <b>要点：</b>用鼻子吸气，嘴巴缓慢呼气，呼气时间一定要比吸气长——这是激活迷走神经的关键。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">今日轮数</div><div class="value" id="todayCycles">0</div></div>
+    <div class="stat"><div class="label">累计轮数</div><div class="value" id="totalCycles">0</div></div>
+    <div class="stat"><div class="label">练习次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">4-7-8 由 Andrew Weil 推广 · 有助于入睡与降低焦虑</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var PRESETS = {
+    '478': { name:'4-7-8 助眠', desc:'吸 4 秒 · 憋 7 秒 · 呼 8 秒 · 做 4 轮',
+             phases:[['inhale','吸气',4],['hold','憋气',7],['exhale','呼气',8]], rounds:4 },
+    '44':  { name:'4-4 平衡', desc:'吸 4 秒 · 呼 4 秒 · 做 8 轮（适合紧张时快速平复）',
+             phases:[['inhale','吸气',4],['exhale','呼气',4]], rounds:8 },
+    'box': { name:'4-4-4-4 方盒', desc:'吸 4 · 憋 4 · 呼 4 · 憋 4 · 做 5 轮（提升专注）',
+             phases:[['inhale','吸气',4],['hold','憋气',4],['exhale','呼气',4],['hold2','憋气',4]], rounds:5 }
+  };
+
+  var el = {
+    orb: document.getElementById('orb'),
+    word: document.getElementById('breatheWord'),
+    count: document.getElementById('count'),
+    phaseLabel: document.getElementById('phaseLabel'),
+    dots: document.getElementById('dots'),
+    btnMain: document.getElementById('btnMain'),
+    btnStop: document.getElementById('btnStop'),
+    presetDesc: document.getElementById('presetDesc')
+  };
+
+  var presetKey = '478';
+  var timer = null;
+  var running = false;
+  var phaseIdx = 0;
+  var round = 0;
+  var remain = 0;
+
+  var data = BT.get('breath', { log: [] });
+
+  function preset(){ return PRESETS[presetKey]; }
+
+  function renderDots(){
+    var p = preset(), html = '';
+    for(var i=0;i<p.rounds;i++){
+      var cls = i < round ? 'done' : i === round && running ? 'now' : '';
+      html += '<i class="' + cls + '"></i>';
+    }
+    el.dots.innerHTML = html;
+  }
+
+  function setOrb(state){
+    el.orb.className = 'orb ' + (state || '');
+  }
+  function setWord(txt){
+    el.word.textContent = txt;
+    el.word.style.opacity = txt ? '1' : '0';
+  }
+
+  function runPhase(){
+    var p = preset();
+    var ph = p.phases[phaseIdx];
+    var type = ph[0], label = ph[1], secs = ph[2];
+
+    remain = secs;
+    el.count.textContent = remain;
+    el.phaseLabel.textContent = '第 ' + (round+1) + '/' + p.rounds + ' 轮 · ' + label;
+    setWord(label);
+    if(type === 'inhale') setOrb('inhale');
+    else if(type === 'exhale') setOrb('exhale');
+    else setOrb('hold');
+    renderDots();
+
+    clearInterval(timer);
+    timer = setInterval(function(){
+      remain--;
+      if(remain <= 0){
+        clearInterval(timer);
+        nextPhase();
+      }else{
+        el.count.textContent = remain;
+      }
+    }, 1000);
+  }
+
+  function nextPhase(){
+    var p = preset();
+    phaseIdx++;
+    if(phaseIdx >= p.phases.length){
+      phaseIdx = 0;
+      round++;
+      if(round >= p.rounds){ finish(); return; }
+    }
+    runPhase();
+  }
+
+  function start(){
+    if(running) return;
+    running = true;
+    phaseIdx = 0; round = 0;
+    el.btnMain.style.display = 'none';
+    el.btnStop.style.display = 'block';
+    runPhase();
+  }
+
+  function finish(){
+    clearInterval(timer);
+    running = false;
+    setOrb('');
+    setWord('');
+    el.count.textContent = '✓';
+    el.phaseLabel.textContent = '完成 ' + preset().rounds + ' 轮 · 感受一下此刻的状态';
+
+    var p = preset();
+    data.log.push({ date: BT.todayKey(), ts: Date.now(), cycles: p.rounds, preset: presetKey });
+    BT.set('breath', data);
+    BT.reportScore('breathing', { cycles: p.rounds, preset: presetKey });
+    BT.log('breathing', { rounds: p.rounds, preset: presetKey });
+
+    el.btnMain.style.display = 'block';
+    el.btnMain.textContent = '再来一组';
+    el.btnStop.style.display = 'none';
+    renderDots();
+    refreshStats();
+
+    if(navigator.vibrate) navigator.vibrate([20, 60, 20]);
+  }
+
+  function stop(){
+    clearInterval(timer);
+    running = false;
+    setOrb('');
+    setWord('');
+    el.count.textContent = '—';
+    el.phaseLabel.textContent = '已停止';
+    el.btnMain.style.display = 'block';
+    el.btnMain.textContent = '开始 · 放松一下';
+    el.btnStop.style.display = 'none';
+    round = 0; phaseIdx = 0;
+    renderDots();
+  }
+
+  function refreshStats(){
+    var today = 0, total = 0;
+    data.log.forEach(function(r){
+      total += r.cycles;
+      if(r.date === BT.todayKey()) today += r.cycles;
+    });
+    document.getElementById('todayCycles').textContent = today;
+    document.getElementById('totalCycles').textContent = total;
+    document.getElementById('sessions').textContent = data.log.length;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('#presetSeg button'), function(b){
+    b.onclick = function(){
+      if(running) return;
+      Array.prototype.forEach.call(document.querySelectorAll('#presetSeg button'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      presetKey = b.dataset.p;
+      el.presetDesc.textContent = preset().desc;
+      el.count.textContent = preset().phases[0][2];
+      el.phaseLabel.textContent = '准备好后点击开始';
+      round = 0; phaseIdx = 0;
+      renderDots();
+    };
+  });
+
+  el.btnMain.onclick = start;
+  el.btnStop.onclick = stop;
+
+  el.count.textContent = preset().phases[0][2];
+  el.btnMain.textContent = '开始 · 放松一下';
+  renderDots();
+  refreshStats();
+})();
+</script>
+</body>
+</html>

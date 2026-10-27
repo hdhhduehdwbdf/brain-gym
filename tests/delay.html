@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>延迟折扣 · 自控力测量</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.dd-stage{
+  background:linear-gradient(160deg,#20264A,#181D36);
+  border:1px solid var(--line2);border-radius:20px;padding:22px 18px;margin:14px 0;
+}
+.dd-q{text-align:center;font-size:14px;color:var(--muted);margin-bottom:16px}
+.dd-opts{display:flex;flex-direction:column;gap:11px}
+.dd-opt{
+  background:var(--card);border:1.5px solid var(--line2);border-radius:15px;
+  padding:16px;text-align:center;cursor:pointer;font-family:inherit;color:var(--text);
+  transition:transform .12s,border-color .15s;user-select:none;
+}
+.dd-opt:active{transform:scale(.97)}
+.dd-opt:hover{border-color:rgba(91,140,255,.5)}
+.dd-opt .amt{font-size:24px;font-weight:800}
+.dd-opt .when{font-size:13px;color:var(--muted);margin-top:3px}
+.dd-opt.imm{border-color:rgba(52,201,139,.4)}
+.dd-opt.del{border-color:rgba(139,124,255,.35)}
+
+.dd-prog{display:flex;gap:4px;justify-content:center;margin:12px 0}
+.dd-prog i{width:10px;height:6px;border-radius:3px;background:rgba(255,255,255,.12)}
+.dd-prog i.done{background:var(--blue)}
+
+.dd-result{text-align:center}
+.dd-result .curve-hint{font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:10px}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">延迟折扣</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:2px">
+    每题二选一：<b style="color:var(--green)">现在的小奖励</b> vs <b style="color:var(--violet)">以后的大奖励</b><br>
+    没有对错，如实选就好
+  </p>
+
+  <div class="dd-stage" id="stage" style="display:none">
+    <div class="dd-q" id="qText"></div>
+    <div class="dd-opts">
+      <button class="dd-opt imm" id="optNow"></button>
+      <button class="dd-opt del" id="optLater"></button>
+    </div>
+  </div>
+
+  <div class="dd-stage dd-result" id="resultBox" style="display:none">
+    <div class="sub">你的耐心指数（越低越冲动）</div>
+    <div class="big" id="kValue" style="font-size:42px;font-weight:800;margin:8px 0 4px">--</div>
+    <div class="grade" id="kGrade" style="margin-bottom:6px"></div>
+    <div class="curve-hint" id="kHint"></div>
+  </div>
+
+  <div class="dd-prog" id="prog"></div>
+
+  <button class="btn btn-primary btn-block" id="btnStart">开始 · 共 9 题</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>延迟折扣范式（Mazur, 1987）——"随延迟贬值"是人性常数：远期奖励的心理价值会打折。折扣率 k 高的人更冲动，与拖延、刷手机停不下来直接相关。<br>
+    <b>练什么：</b>先看清自己的折扣曲线。k 偏高的人，对抗拖延的策略不是"更自律"，而是<b style="color:var(--text)">把远期奖励挪近</b>（拆小目标、即时反馈）。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最佳耐心</div><div class="value" id="bestPat">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+    <div class="stat"><div class="label">上次</div><div class="value" id="lastPat">--</div></div>
+  </div>
+
+  <footer class="page-foot">纯自测参考 · 结果会随状态波动</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var IMM = 50;  // 固定：现在 50 元
+  var QUESTIONS = [
+    { later: 60,  delay: 1 },
+    { later: 80,  delay: 7 },
+    { later: 120, delay: 30 },
+    { later: 200, delay: 90 },
+    { later: 80,  delay: 1 },
+    { later: 120, delay: 7 },
+    { later: 300, delay: 180 },
+    { later: 60,  delay: 7 },
+    { later: 200, delay: 30 }
+  ];
+
+  var el = {
+    stage: document.getElementById('stage'),
+    qText: document.getElementById('qText'),
+    optNow: document.getElementById('optNow'),
+    optLater: document.getElementById('optLater'),
+    resultBox: document.getElementById('resultBox'),
+    prog: document.getElementById('prog'),
+    btnStart: document.getElementById('btnStart')
+  };
+
+  var qi = 0;
+  var choices = []; // true = 选了立即
+  var kEst = null;
+
+  function delayText(d){
+    if(d === 1) return '明天';
+    if(d < 30) return d + ' 天后';
+    return Math.round(d/30) + ' 个月后';
+  }
+
+  function renderQ(){
+    var q = QUESTIONS[qi];
+    el.qText.textContent = '第 ' + (qi+1) + '/' + QUESTIONS.length + ' 题';
+    el.optNow.innerHTML = '<div class="amt">现在拿 ' + IMM + ' 元</div><div class="when">立刻到手</div>';
+    el.optLater.innerHTML = '<div class="amt">' + q.later + ' 元</div><div class="when">' + delayText(q.delay) + '到手</div>';
+    var html = '';
+    for(var i=0;i<QUESTIONS.length;i++){
+      html += '<i class="' + (i < qi ? 'done' : '') + '"></i>';
+    }
+    el.prog.innerHTML = html;
+  }
+
+  function start(){
+    qi = 0;
+    choices = [];
+    el.btnStart.style.display = 'none';
+    el.resultBox.style.display = 'none';
+    el.stage.style.display = 'block';
+    renderQ();
+  }
+
+  function pick(choseNow){
+    choices.push(choseNow);
+    qi++;
+    if(qi >= QUESTIONS.length){ finish(); return; }
+    renderQ();
+  }
+
+  function finish(){
+    el.stage.style.display = 'none';
+    // 估计折扣率：无差异点 = 立即奖励/延迟奖励
+    // 简化估计：对每题算立即被选的倾向，加权得到 k
+    var sum = 0;
+    QUESTIONS.forEach(function(q, i){
+      var ratio = IMM / q.later;            // 无差异点
+      var saidNow = choices[i];             // 选了现在的
+      // 每题对 k 的贡献：选现在 → k 高
+      sum += saidNow ? ratio : ratio * 0.4;
+    });
+    kEst = sum / QUESTIONS.length;
+
+    var g, hint;
+    if(kEst < 0.35){
+      g = { t:'耐心很好', c:'var(--green)' };
+      hint = '你能为更大的远期回报等待——适合做需要长期投入的事。注意别把"以后再说"当成无限期拖延。';
+    }else if(kEst < 0.6){
+      g = { t:'正常范围', c:'var(--blue)' };
+      hint = '大多数人在这个区间。想要更有耐心，把远期目标拆成一周内能看到反馈的小目标最有效。';
+    }else{
+      g = { t:'偏冲动', c:'var(--amber)' };
+      hint = '远期奖励对你打折很多。与其硬扛，不如用技巧：给远期任务加即时奖励（做完就奖励自己），把未来搬到眼前。';
+    }
+
+    document.getElementById('kValue').textContent = Math.round(kEst*100) + '%';
+    var gr = document.getElementById('kGrade');
+    gr.textContent = g.t;
+    gr.style.color = g.c;
+    document.getElementById('kHint').textContent = hint;
+    el.resultBox.style.display = 'block';
+    el.prog.innerHTML = QUESTIONS.map(function(){ return '<i class="done"></i>'; }).join('');
+
+    var patience = 1 - kEst;
+    var record = { patience: +patience.toFixed(2), k: +kEst.toFixed(2) };
+    BT.log('delay', record);
+    if(BT.reportScore) BT.reportScore('delay', record);
+    refreshStats(record);
+    el.btnStart.style.display = 'block';
+    el.btnStart.textContent = '再测一次';
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'delay'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = null, lastV = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.patience != null){
+        if(best === null || e.patience > best) best = e.patience;
+        lastV = e.patience;
+      }
+    });
+    document.getElementById('bestPat').textContent = best != null ? Math.round(best*100) + '%' : '--';
+    document.getElementById('lastPat').textContent = lastV != null ? Math.round(lastV*100) + '%' : '--';
+  }
+
+  el.optNow.onclick = function(){ pick(true); };
+  el.optLater.onclick = function(){ pick(false); };
+  el.btnStart.onclick = start;
+  refreshStats();
+})();
+</script>
+</body>
+</html>

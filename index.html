@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>脑力健身房</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23172340'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%235B8CFF' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%238B7CFF'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.hero{padding:18px 0 6px;text-align:center}
+.hero .emoji{font-size:44px;line-height:1}
+.hero h1{font-size:28px;font-weight:800;margin-top:10px;letter-spacing:1px}
+.hero .slogan{font-size:13.5px;color:var(--muted);margin-top:8px;line-height:1.7}
+
+.streak-card{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#1E2445,#191E38);
+  border:1px solid rgba(120,140,255,.25);border-radius:18px;
+  padding:15px 18px;margin-top:16px;
+}
+.streak-flame{font-size:30px;line-height:1}
+.streak-info{flex:1}
+.streak-num{font-size:22px;font-weight:800;line-height:1.2}
+.streak-num span{font-size:13px;font-weight:600;color:var(--muted);margin-left:3px}
+.streak-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.heat{display:flex;gap:3px;align-items:flex-end}
+.heat i{width:9px;border-radius:3px;background:rgba(255,255,255,.08);transition:.2s}
+
+/* ---- 对话框 ---- */
+.chat-card{
+  background:var(--card);border:1px solid var(--line2);border-radius:20px;
+  padding:16px;margin-top:20px;box-shadow:0 12px 32px rgba(0,0,0,.25);
+}
+.chat-card h2{font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:7px}
+.chat-card h2 .live{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+.chat-sub{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+
+.chat-log{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:44px;max-height:300px;overflow-y:auto}
+.msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:14px;line-height:1.65;animation:fadeUp .3s}
+.msg.bot{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:6px;align-self:flex-start;color:#D9DEF0}
+.msg.user{background:linear-gradient(135deg,#3D5BD9,#5B4BD9);border-bottom-right-radius:6px;align-self:flex-end;color:#fff}
+.msg .rec-cards{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+
+.rec-card{
+  display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(120,140,255,.3);border-radius:13px;padding:11px 13px;
+  text-decoration:none;transition:.15s;
+}
+.rec-cards .rec-card{background:var(--card);border-color:var(--line2)}
+.rec-card:active{transform:scale(.97)}
+.rec-icon{
+  width:40px;height:40px;flex:0 0 40px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  background:linear-gradient(135deg,rgba(91,140,255,.2),rgba(139,124,255,.2));
+}
+.rec-body{flex:1;min-width:0}
+.rec-name{font-size:14.5px;font-weight:700;color:var(--text)}
+.rec-why{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+.rec-go{color:var(--blue);font-size:15px;flex:0 0 auto}
+
+.chat-input-row{display:flex;gap:9px}
+.chat-input-row .input{flex:1;border-radius:14px}
+.chat-send{
+  flex:0 0 auto;width:48px;border-radius:14px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#4A7CFF,#6E5BFF);color:#fff;font-size:18px;
+  display:flex;align-items:center;justify-content:center;transition:transform .12s;font-family:inherit;
+}
+.chat-send:active{transform:scale(.93)}
+
+.suggest-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.suggest-row .chip{font-size:12px;padding:7px 12px}
+
+/* ---- 测试宫格 ---- */
+.test-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.test-card{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:15px 14px;text-decoration:none;color:inherit;
+  display:flex;flex-direction:column;transition:transform .15s,border-color .15s;
+  position:relative;overflow:hidden;
+}
+.test-card:active{transform:scale(.97)}
+.test-card .t-icon{
+  width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:10px;
+}
+.test-card .t-name{font-size:15.5px;font-weight:800}
+.test-card .t-desc{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.55}
+.test-card .t-stat{font-size:11px;color:var(--faint);margin-top:9px;display:flex;justify-content:space-between;align-items:center}
+.test-card .t-stat b{color:var(--muted);font-weight:700}
+.t-arrow{color:var(--faint);font-size:14px}
+.badge-new{
+  position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;
+  background:rgba(139,124,255,.22);color:#C3B9FF;padding:3px 8px;border-radius:999px;border:1px solid rgba(139,124,255,.35);
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="hero">
+    <div class="emoji">🧠</div>
+    <h1>脑力健身房</h1>
+    <p class="slogan">注意力 · 工作记忆 · 长期记忆 · 表达力<br>每天 10 分钟，练出能随时调用的脑子</p>
+  </div>
+
+  <div class="streak-card">
+    <div class="streak-flame">🔥</div>
+    <div class="streak-info">
+      <div class="streak-num" id="streakNum">0<span>天连击</span></div>
+      <div class="streak-sub" id="streakSub">今天还没开始练</div>
+    </div>
+    <div class="heat" id="heatBars"></div>
+  </div>
+
+  <!-- 对话框 -->
+  <div class="chat-card">
+    <h2><span class="live"></span>今天想练什么？</h2>
+    <p class="chat-sub">说说你现在的状态或需求，我帮你挑一个最合适的</p>
+
+    <div class="chat-log" id="chatLog">
+      <div class="msg bot">你好！描述一下你的状态——比如"明天要开会，怕被点名"、"睡前想放松"、"静不下心"。我会推荐适合的练习。</div>
+    </div>
+
+    <div class="chat-input-row">
+      <input class="input" id="chatInput" placeholder="输入你的状态或需求…" maxlength="60" autocomplete="off">
+      <button class="chat-send" id="chatSend" aria-label="发送">➤</button>
+    </div>
+
+    <div class="suggest-row" id="suggestRow">
+      <button class="chip">明天要汇报，怕被点名</button>
+      <button class="chip">开会老走神</button>
+      <button class="chip">睡前想助眠</button>
+      <button class="chip">记东西记不住</button>
+    </div>
+  </div>
+
+  <!-- 测试宫格 -->
+  <div class="section-title">八个训练区</div>
+  <div class="test-grid" id="testGrid">
+    <a class="test-card" href="tests/schulte.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(52,201,139,.22),rgba(52,201,139,.08))">🎯</div>
+      <div class="t-name">舒尔特方格</div>
+      <div class="t-desc">视觉搜索 · 持续性注意力</div>
+      <div class="t-stat"><span id="s-schulte">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/digit.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(91,140,255,.22),rgba(91,140,255,.08))">🔢</div>
+      <div class="t-name">数字广度</div>
+      <div class="t-desc">倒背数字 · 工作记忆容量</div>
+      <div class="t-stat"><span id="s-digit">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/breathing.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(139,124,255,.22),rgba(139,124,255,.08))">🫁</div>
+      <div class="t-name">4-7-8 呼吸</div>
+      <div class="t-desc">激活迷走神经 · 快速平复</div>
+      <div class="t-stat"><span id="s-breathing">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/palace.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(240,166,75,.22),rgba(240,166,75,.08))">🏛️</div>
+      <div class="t-name">记忆宫殿</div>
+      <div class="t-desc">空间联想 · 长期记忆编码</div>
+      <div class="t-stat"><span id="s-palace">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/pressure.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(255,107,138,.22),rgba(255,107,138,.08))">🎤</div>
+      <div class="t-name">表达高压舱</div>
+      <div class="t-desc">10 秒开口 · 60 秒结构表达</div>
+      <div class="t-stat"><span id="s-pressure">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/gonogo.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(74,222,140,.22),rgba(74,222,140,.08))">🚦</div>
+      <div class="t-name">Go / No-Go</div>
+      <div class="t-desc">冲动抑制 · 反应控制</div>
+      <div class="t-stat"><span id="s-gonogo">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/stroop.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(255,123,146,.22),rgba(255,123,146,.08))">🎨</div>
+      <div class="t-name">Stroop 色词</div>
+      <div class="t-desc">干扰抑制 · 认知灵活性</div>
+      <div class="t-stat"><span id="s-stroop">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/srt.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(96,205,255,.22),rgba(96,205,255,.08))">⚡</div>
+      <div class="t-name">反应速度</div>
+      <div class="t-desc">简单反应时 · 状态警觉</div>
+      <div class="t-stat"><span id="s-srt">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/nback.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(139,124,255,.22),rgba(139,124,255,.08))">🧩</div>
+      <div class="t-name">N-back</div>
+      <div class="t-desc">记忆刷新 · 流体智力</div>
+      <div class="t-stat"><span id="s-nback">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/corsi.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(77,208,225,.22),rgba(77,208,225,.08))">🟦</div>
+      <div class="t-name">Corsi 方块</div>
+      <div class="t-desc">空间记忆 · 视空跨度</div>
+      <div class="t-stat"><span id="s-corsi">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/tmt.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(240,166,75,.22),rgba(240,166,75,.08))">✏️</div>
+      <div class="t-name">连线测验</div>
+      <div class="t-desc">规则切换 · 认知灵活性</div>
+      <div class="t-stat"><span id="s-tmt">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/rotation.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(91,140,255,.22),rgba(91,140,255,.08))">🔄</div>
+      <div class="t-name">心理旋转</div>
+      <div class="t-desc">脑内转图 · 空间推理</div>
+      <div class="t-stat"><span id="s-rotation">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/sdmt.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(52,201,139,.22),rgba(52,201,139,.08))">⌨️</div>
+      <div class="t-name">符号译码</div>
+      <div class="t-desc">查表比对 · 加工速度</div>
+      <div class="t-stat"><span id="s-sdmt">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/drm.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(255,107,138,.22),rgba(255,107,138,.08))">🌫️</div>
+      <div class="t-name">错误记忆</div>
+      <div class="t-desc">DRM 诱饵 · 记忆监控</div>
+      <div class="t-stat"><span id="s-drm">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="tests/delay.html">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(240,166,75,.22),rgba(240,166,75,.08))">⏳</div>
+      <div class="t-name">延迟折扣</div>
+      <div class="t-desc">小现在 vs 大以后 · 自控</div>
+      <div class="t-stat"><span id="s-delay">还没开始</span><span class="t-arrow">→</span></div>
+    </a>
+    <a class="test-card" href="progress.html" style="background:linear-gradient(150deg,#1B2140,#171B30)">
+      <div class="t-icon" style="background:linear-gradient(135deg,rgba(77,208,225,.22),rgba(77,208,225,.08))">📈</div>
+      <div class="t-name">我的成绩</div>
+      <div class="t-desc">连击 · 总览 · 各项最佳</div>
+      <div class="t-stat"><span>查看全部数据</span><span class="t-arrow">→</span></div>
+    </a>
+  </div>
+
+  <footer class="page-foot">所有数据保存在本机浏览器 · 换设备或清缓存会丢失<br>内容参考认知训练方法，不能替代专业医疗建议</footer>
+</main>
+
+<script src="assets/app.js"></script>
+<script src="assets/sync.js"></script>
+<script>
+(function(){
+  var TESTS = {
+    schulte:   { name:'舒尔特方格', icon:'🎯', href:'tests/schulte.html',
+                 why:'练的就是"盯住一个目标不走神"，适合开会走神、看东西慢半拍' },
+    digit:     { name:'数字广度', icon:'🔢', href:'tests/digit.html',
+                 why:'练"脑子里同时装住更多信息"，工作记忆是临场表达的底座' },
+    breathing: { name:'4-7-8 呼吸', icon:'🫁', href:'tests/breathing.html',
+                 why:'被点名前先做 3 组，直接降低杏仁核警报，前额叶才能上线' },
+    palace:    { name:'记忆宫殿', icon:'🏛️', href:'tests/palace.html',
+                 why:'把要记的东西放到熟悉的路线上，让"记住"不靠临时硬背' },
+    pressure:  { name:'表达高压舱', icon:'🎤', href:'tests/pressure.html',
+                 why:'10 秒倒计时逼你开口，专门针对"被点名脑袋空白"' },
+    gonogo:    { name:'Go / No-Go', icon:'🚦', href:'tests/gonogo.html',
+                 why:'看到"停"的信号要立刻刹住，练冲动控制和反应抑制' },
+    stroop:    { name:'Stroop 色词', icon:'🎨', href:'tests/stroop.html',
+                 why:'字义和颜色打架时选对的，练抗干扰和认知灵活性' },
+    srt:       { name:'反应速度', icon:'⚡', href:'tests/srt.html',
+                 why:'最基础的警觉度测试，困不困、状态好不好一测就知道' },
+    nback:     { name:'N-back', icon:'🧩', href:'tests/nback.html',
+                 why:'工作记忆的"金标准"任务，练脑中信息的持续更新' },
+    corsi:     { name:'Corsi 方块', icon:'🟦', href:'tests/corsi.html',
+                 why:'看方块亮的位置按顺序复现，练空间工作记忆' },
+    tmt:       { name:'连线测验', icon:'✏️', href:'tests/tmt.html',
+                 why:'数字字母交替连线，练两条规则间的来回切换' },
+    rotation:  { name:'心理旋转', icon:'🔄', href:'tests/rotation.html',
+                 why:'判断图形是旋转还是镜像，练脑内图像操作' },
+    sdmt:      { name:'符号译码', icon:'⌨️', href:'tests/sdmt.html',
+                 why:'60 秒查表比对，测的是最基础的加工速度' },
+    drm:       { name:'错误记忆', icon:'🌫️', href:'tests/drm.html',
+                 why:'体验"记得很清楚但其实是假的"，练记忆监控' },
+    delay:     { name:'延迟折扣', icon:'⏳', href:'tests/delay.html',
+                 why:'看清你的折扣曲线，理解拖延和冲动背后的机制' }
+  };
+
+  /* ---- 打卡条 ---- */
+  function renderStreak(){
+    var s = BT.streak();
+    var days = BT.daysTrained();
+    document.getElementById('streakNum').innerHTML = s + '<span>天连击</span>';
+    var tc = BT.todayCount();
+    document.getElementById('streakSub').textContent =
+      tc ? ('今天已练 ' + tc + ' 次 · 累计 ' + days + ' 天') : '今天还没开始练 · 累计 ' + days + ' 天';
+
+    var bars = '';
+    BT.heat(14).forEach(function(d){
+      var h = d.count === 0 ? 4 : Math.min(6 + d.count * 3, 18);
+      var op = d.count === 0 ? '.12' : Math.min(.35 + d.count * .18, 1);
+      bars += '<i style="height:' + h + 'px;opacity:' + op + ';background:' +
+        (d.count ? 'var(--blue)' : 'rgba(255,255,255,.15)') + '"></i>';
+    });
+    document.getElementById('heatBars').innerHTML = bars;
+  }
+
+  /* ---- 各卡摘要 ---- */
+  function renderSummaries(){
+    var map = {
+      's-schulte': BT.stats.schulte(), 's-digit': BT.stats.digit(),
+      's-breathing': BT.stats.breathing(), 's-palace': BT.stats.palace(),
+      's-pressure': BT.stats.pressure(),
+      's-gonogo': BT.stats.gonogo ? BT.stats.gonogo() : {},
+      's-stroop': BT.stats.stroop ? BT.stats.stroop() : {},
+      's-srt': BT.stats.srt ? BT.stats.srt() : {},
+      's-nback': BT.stats.nback ? BT.stats.nback() : {},
+      's-corsi': BT.stats.corsi ? BT.stats.corsi() : {},
+      's-tmt': BT.stats.tmt ? BT.stats.tmt() : {},
+      's-rotation': BT.stats.rotation ? BT.stats.rotation() : {},
+      's-sdmt': BT.stats.sdmt ? BT.stats.sdmt() : {},
+      's-drm': BT.stats.drm ? BT.stats.drm() : {},
+      's-delay': BT.stats.delay ? BT.stats.delay() : {}
+    };
+    Object.keys(map).forEach(function(id){
+      var e = document.getElementById(id);
+      if(!e) return;
+      var d = map[id];
+      e.textContent = d.best || d.line;
+    });
+  }
+
+  /* ---- 匹配引擎 ---- */
+  var RULES = [
+    { keys:['点名','被问','被cue','被cue','空白','卡壳','接不上','问住','哑口','说不出'],
+      pick:['breathing','pressure'], bot:'被点名的瞬间杏仁核会抢走话筒——先做一次呼吸把警报降下来，再用高压舱把"开口"变成肌肉记忆。两个配合用效果最好：' },
+    { keys:['汇报','演讲','发言','发言稿','上台','述职','答辩','讲','主持'],
+      pick:['pressure','palace'], bot:'汇报类场景的核心是"结构化输出"，高压舱练 60 秒结构表达，宫殿帮你把要点记牢不忘词：' },
+    { keys:['开会','走神','分心','专注','注意力','集中','跑神','看不进','坐不住'],
+      pick:['schulte','breathing'], bot:'注意力是可以直接练的——方格练视觉搜索的"抓取力"，呼吸练"稳住不走神"：' },
+    { keys:['记不住','忘','记忆','背','海马体','宫殿','遗忘'],
+      pick:['palace','digit'], bot:'记忆分两层：短期容量（数字广度）和长期编码（记忆宫殿），两个一起练才完整：' },
+    { keys:['睡','失眠','助眠','放松','焦虑','紧张','压力','心跳','平静','冷静'],
+      pick:['breathing'], bot:'4-7-8 呼吸是被广泛验证的放松方法，睡前做 4 轮，呼气比吸气长是关键：' },
+    { keys:['反应','反应慢','脑子慢','思维','敏捷','灵活'],
+      pick:['srt','gonogo','digit'], bot:'反应速度分三层：基础警觉（反应时）、冲动刹车（Go/No-Go）、工作记忆（数字广度），按顺序练：' },
+    { keys:['冲动','忍不住','手滑','克制','自控','刹不住','拖延','刷手机','停不下来'],
+      pick:['gonogo','delay','stroop'], bot:'冲动和拖延是一体两面——Go/No-Go 练"该停就停"的刹车，延迟折扣让你看清自己的折扣曲线，Stroop 练"不被干扰带跑"：' },
+    { keys:['空间','方向','路痴','认路','地图','转不过弯','立体'],
+      pick:['corsi','rotation'], bot:'空间能力分两层——Corsi 练空间信息的"装存"，心理旋转练脑内图像的"转动"，两个配合练：' },
+    { keys:['记性','好没好','体检','测一测','测测','自测','评估'],
+      pick:['srt','sdmt','nback'], bot:'想给自己做个认知体检，推荐这条经典链路——反应速度（警觉）→ 符号译码（加工速度）→ N-back（工作记忆），三分钟出全貌：' },
+    { keys:['记不清','幻觉','假的','扭曲','重构','不可靠'],
+      pick:['drm'], bot:'记忆不是录像机是重构画——DRM 范式让你亲眼看到大脑"编造"记忆的全过程：' },
+    { keys:['表达','口才','说话','沟通','演讲紧张'],
+      pick:['pressure','breathing'], bot:'表达是技能不是天赋——高压舱每天一次真的开口，比看一百篇帖子都有用：' }
+  ];
+
+  function match(text){
+    var t = text.toLowerCase();
+    var scores = [];
+    Object.keys(RULES).forEach(function(i){
+      var rule = RULES[i];
+      var hits = 0;
+      rule.keys.forEach(function(k){ if(t.indexOf(k) > -1) hits++; });
+      if(hits > 0) scores.push({ i:+i, hits:hits, rule:rule });
+    });
+    scores.sort(function(a,b){ return b.hits - a.hits; });
+    return scores.length ? scores[0].rule : null;
+  }
+
+  function recCardHtml(t){
+    return '<a class="rec-card" href="' + t.href + '">' +
+      '<div class="rec-icon">' + t.icon + '</div>' +
+      '<div class="rec-body"><div class="rec-name">' + t.name + '</div>' +
+      '<div class="rec-why">' + t.why + '</div></div>' +
+      '<div class="rec-go">→</div></a>';
+  }
+
+  function addMsg(html, who){
+    var log = document.getElementById('chatLog');
+    var d = document.createElement('div');
+    d.className = 'msg ' + who;
+    d.innerHTML = html;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
+
+  function handleUser(text){
+    text = text.trim();
+    if(!text) return;
+    addMsg(text.replace(/</g,'&lt;'), 'user');
+    document.getElementById('chatInput').value = '';
+
+    setTimeout(function(){
+      var rule = match(text);
+      if(rule){
+        var cards = rule.pick.map(function(id){ return recCardHtml(TESTS[id]); }).join('');
+        addMsg(rule.bot + '<div class="rec-cards">' + cards + '</div>', 'bot');
+      }else{
+        var fallback = ['breathing','pressure','schulte'].map(function(id){ return recCardHtml(TESTS[id]); }).join('');
+        addMsg('这个需求我不太确定，先推荐几个通用组合——呼吸稳状态、方格练专注、高压舱练开口：<div class="rec-cards">' + fallback + '</div>', 'bot');
+      }
+    }, 350);
+  }
+
+  document.getElementById('chatSend').onclick = function(){
+    handleUser(document.getElementById('chatInput').value);
+  };
+  document.getElementById('chatInput').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') handleUser(this.value);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#suggestRow .chip'), function(b){
+    b.onclick = function(){ handleUser(b.textContent); };
+  });
+
+  renderStreak();
+  renderSummaries();
+  document.addEventListener('bt:synced', function(){
+    renderStreak();
+    renderSummaries();
+  });
+})();
+</script>
+</body>
+</html>

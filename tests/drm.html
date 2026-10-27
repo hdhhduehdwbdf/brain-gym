@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>错误记忆 · DRM 范式</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.stage{min-height:200px;display:flex;align-items:center;justify-content:center;margin:14px 0}
+.big-word{
+  font-size:clamp(34px,11vw,48px);font-weight:900;letter-spacing:4px;
+}
+.big-word.pop{animation:popIn .25s}
+.word-count{text-align:center;font-size:13.5px;color:var(--muted);margin-bottom:10px;min-height:18px}
+
+.judge-row{display:flex;gap:10px;margin-bottom:4px}
+.judge-btn{
+  flex:1;padding:22px 0;border:none;border-radius:16px;font-size:17px;font-weight:800;
+  cursor:pointer;font-family:inherit;color:#fff;transition:transform .1s;user-select:none;
+}
+.judge-btn:active{transform:scale(.95)}
+.judge-btn:disabled{opacity:.35}
+.j-old{background:linear-gradient(135deg,#2A4FB0,#3B6FE0)}
+.j-new{background:linear-gradient(135deg,#8A3348,#B03A50)}
+
+.rj-item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:14px;margin-bottom:8px}
+.rj-tag{font-size:11px;padding:3px 8px;border-radius:6px;font-weight:700;flex:0 0 auto}
+.rj-tag.critical{background:rgba(240,166,75,.18);color:var(--amber)}
+.rj-tag.old{background:rgba(52,201,139,.15);color:var(--green)}
+.rj-tag.new{background:var(--card2);color:var(--muted)}
+.rj-word{flex:1}
+.rj-res{font-size:13px;flex:0 0 auto}
+.res-ok{color:var(--green)}.res-bad{color:var(--rose)}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+.exp-note .warn{color:var(--amber)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">错误记忆</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:2px">
+    记住出现的词 → 然后判断哪些词<b style="color:var(--text)">刚才出现过</b>
+  </p>
+
+  <div class="stage"><div class="big-word" style="color:var(--faint);font-size:24px" id="word">点击开始</div></div>
+  <div class="word-count" id="cnt">共 12 个词 · 每个出现 1.6 秒</div>
+
+  <div class="judge-row" id="judgeRow" style="display:none">
+    <button class="judge-btn j-new" id="btnNew">没出现过</button>
+    <button class="judge-btn j-old" id="btnOld">出现过 ✓</button>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart">开始</button>
+
+  <div id="resultArea" style="display:none;margin-top:6px">
+    <div class="card" style="text-align:center;margin-bottom:14px">
+      <div style="font-size:34px;font-weight:800" id="scoreBig">--</div>
+      <div class="sub" id="scoreSub"></div>
+    </div>
+    <div id="resList"></div>
+  </div>
+
+  <div class="exp-note">
+    <b>实验来源：</b>DRM 范式（Deese–Roediger–McDermott, 1995）——给你一串相关的词（医生、护士、药、病…），<span class="warn">关键诱饵"医院"从未出现过</span>，但约 70% 的人会"记得见过它"。记忆不是录像，是重构。<br>
+    <b>练什么：</b>记忆监控——亲身体验"记得很清楚但其实是错的"，以后对"印象很深"多一分警惕，引用记忆前先核实。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最低误报</div><div class="value" id="bestFalse">--</div></div>
+    <div class="stat"><div class="label">最高击中</div><div class="value" id="bestHit">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">测的是"记忆监控"能力 · 不是记忆力好坏</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var SETS = [
+    { crit:'医院', items:['医生','护士','药','病人','手术','诊室','针头','病床','体检','感冒','发烧','处方'] },
+    { crit:'睡觉', items:['枕头','被子','梦','夜晚','打呼','午休','疲倦','打盹','安静','熄灯','闹钟','枕头'] },
+    { crit:'水果', items:['苹果','香蕉','葡萄','橘子','甜','果汁','超市','篮子','削皮','新鲜','维C','果盘'] },
+    { crit:'音乐', items:['耳机','唱歌','旋律','钢琴','歌词','节奏','演唱会','录音','作曲','音响','流行','乐器'] },
+    { crit:'下雨', items:['雨伞','淋湿','乌云','打雷','积水','天气预报','雨衣','屋檐','泥泞','彩虹','阴天','雨点'] },
+    { crit:'老师', items:['黑板','粉笔','作业','课堂','学生','考试','讲台','教室','提问','批改','放学','班主任'] }
+  ];
+  var WORD_MS = 1600;
+
+  var el = {
+    word: document.getElementById('word'),
+    cnt: document.getElementById('cnt'),
+    judgeRow: document.getElementById('judgeRow'),
+    btnStart: document.getElementById('btnStart'),
+    resultArea: document.getElementById('resultArea')
+  };
+
+  var state = 'idle'; // idle | learning | test | done
+  var set = null;
+  var testIdx = -1;
+
+  function buildSet(){
+    var s = SETS[Math.floor(Math.random()*SETS.length)];
+    var items = s.items.slice();
+    // 去重
+    var uniq = [];
+    items.forEach(function(w){ if(uniq.indexOf(w) === -1) uniq.push(w); });
+    for(var i=uniq.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = uniq[i]; uniq[i]=uniq[j]; uniq[j]=t;
+    }
+    var shown = uniq.slice(0, Math.min(12, uniq.length));
+    var tests = [];
+    shown.slice(0,6).forEach(function(w){ tests.push({ w:w, type:'old' }); });
+    tests.push({ w:s.crit, type:'crit' });
+    var newPool = [];
+    var other = SETS.filter(function(x){ return x.crit !== s.crit; });
+    var guard = 0;
+    while(newPool.length < 5 && guard++ < 100){
+      var os = other[Math.floor(Math.random()*other.length)];
+      var w = os.items[Math.floor(Math.random()*os.items.length)];
+      if(w !== s.crit && shown.indexOf(w) === -1 && newPool.indexOf(w) === -1) newPool.push(w);
+    }
+    newPool.forEach(function(w){ tests.push({ w:w, type:'new' }); });
+    for(var k=tests.length-1;k>0;k--){
+      var m = Math.floor(Math.random()*(k+1));
+      var tt = tests[k]; tests[k]=tests[m]; tests[m]=tt;
+    }
+    return { shown: shown, tests: tests, crit: s.crit };
+  }
+
+  function start(){
+    set = buildSet();
+    state = 'learning';
+    testIdx = -1;
+    el.btnStart.style.display = 'none';
+    el.judgeRow.style.display = 'none';
+    el.resultArea.style.display = 'none';
+    el.word.style.display = '';
+    el.cnt.style.display = '';
+    el.cnt.textContent = '记住这些词，待会要考';
+    var i = 0;
+    (function showNext(){
+      if(i >= set.shown.length){
+        beginTest();
+        return;
+      }
+      el.word.textContent = set.shown[i];
+      i++;
+      setTimeout(showNext, WORD_MS);
+    })();
+  }
+
+  function beginTest(){
+    state = 'test';
+    testIdx = -1;
+    el.cnt.textContent = '判断：这个词刚才出现过吗？';
+    el.judgeRow.style.display = 'flex';
+    nextTest();
+  }
+
+  function nextTest(){
+    testIdx++;
+    if(testIdx >= set.tests.length){ finish(); return; }
+    el.word.textContent = set.tests[testIdx].w;
+    el.word.classList.remove('pop');
+    void el.word.offsetWidth;
+    el.word.classList.add('pop');
+  }
+
+  function answer(saidOld){
+    if(state !== 'test') return;
+    set.tests[testIdx].saidOld = !!saidOld;
+    nextTest();
+  }
+
+  function finish(){
+    state = 'done';
+    el.judgeRow.style.display = 'none';
+    el.word.style.display = 'none';
+    el.cnt.style.display = 'none';
+
+    var hits = 0, oldN = 0, critSaid = 0, newFA = 0, newN = 0;
+    set.tests.forEach(function(t){
+      if(t.type === 'old'){ oldN++; if(t.saidOld) hits++; }
+      else if(t.type === 'crit'){ if(t.saidOld) critSaid++; }
+      else { newN++; if(t.saidOld) newFA++; }
+    });
+    var hitRate = oldN ? hits/oldN : 0;
+    var falseRate = (newFA + critSaid) / (newN + 1);
+
+    var big = document.getElementById('scoreBig');
+    big.textContent = critSaid ? '你中招了' : '你没中招';
+    big.style.color = critSaid ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('scoreSub').textContent =
+      '关键诱饵「' + set.crit + '」从未出现过' +
+      (critSaid ? '，但你觉得见过它——这就是错误记忆' : '，你正确拒绝了它');
+
+    document.getElementById('resList').innerHTML = set.tests.map(function(t){
+      var ok = t.type === 'old' ? t.saidOld : !t.saidOld;
+      var tag = t.type === 'crit' ? '诱饵' : t.type === 'old' ? '学过' : '新词';
+      var cls = t.type === 'crit' ? 'critical' : t.type === 'old' ? 'old' : 'new';
+      return '<div class="rj-item"><span class="rj-tag ' + cls + '">' + tag + '</span>' +
+        '<span class="rj-word">' + t.w + '</span>' +
+        '<span class="rj-res ' + (ok ? 'res-ok' : 'res-bad') + '">' + (ok ? '✓ 正确' : '✗ 错误') + '</span></div>';
+    }).join('');
+    el.resultArea.style.display = 'block';
+
+    var record = { hitRate: +hitRate.toFixed(2), falseRate: +falseRate.toFixed(2) };
+    BT.log('drm', record);
+    if(BT.reportScore) BT.reportScore('drm', record);
+    refreshStats(record);
+
+    el.btnStart.style.display = 'block';
+    el.btnStart.textContent = '再来一次';
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'drm'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var bF = null, bH = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.falseRate != null && (bF === null || e.falseRate < bF)) bF = e.falseRate;
+      if(e.hitRate != null && (bH === null || e.hitRate > bH)) bH = e.hitRate;
+    });
+    document.getElementById('bestFalse').textContent = bF != null ? Math.round(bF*100) + '%' : '--';
+    document.getElementById('bestHit').textContent = bH != null ? Math.round(bH*100) + '%' : '--';
+  }
+
+  document.getElementById('btnOld').onclick = function(){ answer(true); };
+  document.getElementById('btnNew').onclick = function(){ answer(false); };
+
+  el.btnStart.onclick = function(){
+    if(state === 'learning') return;
+    el.resultArea.style.display = 'none';
+    start();
+  };
+
+  refreshStats();
+})();
+</script>
+</body>
+</html>

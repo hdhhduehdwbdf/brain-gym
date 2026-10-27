@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>记忆宫殿 · 海马体训练</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.route-card{
+  background:linear-gradient(160deg,#20264A,#181D36);
+  border:1px solid var(--line2);border-radius:20px;padding:16px;
+}
+.route-line{position:relative;padding-left:34px}
+.route-line::before{
+  content:"";position:absolute;left:13px;top:10px;bottom:14px;width:2px;
+  background:linear-gradient(180deg,rgba(139,124,255,.6),rgba(91,140,255,.15));
+  border-radius:2px;
+}
+.stop{position:relative;padding:9px 0}
+.stop::before{
+  content:"";position:absolute;left:-26px;top:16px;width:10px;height:10px;border-radius:50%;
+  background:#2A3159;border:2px solid rgba(139,124,255,.5);transition:.3s;
+}
+.stop.filled::before{background:var(--violet);box-shadow:0 0 12px rgba(139,124,255,.7)}
+.stop-row{display:flex;align-items:center;gap:9px}
+.stop-name{font-size:13.5px;color:var(--muted);flex:0 0 auto;min-width:66px}
+.stop input{
+  flex:1;background:#151933;border:1px solid var(--line2);border-radius:10px;
+  color:var(--text);font-size:15px;padding:9px 12px;font-family:inherit;outline:none;
+  transition:border-color .15s;min-width:0;
+}
+.stop input:focus{border-color:rgba(139,124,255,.6)}
+.stop input::placeholder{color:var(--faint);font-size:13px}
+
+.recall-item{
+  display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);
+  border-radius:13px;padding:11px 14px;margin-bottom:8px;
+}
+.recall-idx{
+  width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--card2);
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);font-weight:700;
+}
+.recall-item .place{font-size:13px;color:var(--muted);flex:0 0 auto;min-width:58px}
+.recall-item div{flex:1}
+.recall-item input{
+  width:100%;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.2);
+  color:var(--text);font-size:15px;padding:5px 2px;font-family:inherit;outline:none;
+}
+.recall-item input:focus{border-bottom-color:rgba(139,124,255,.7)}
+.recall-item.ok{border-color:rgba(52,201,139,.45);background:rgba(52,201,139,.07)}
+.recall-item.no{border-color:rgba(255,107,138,.4);background:rgba(255,107,138,.06)}
+.recall-item .mark{font-size:15px;flex:0 0 auto}
+.recall-item .ans{font-size:12px;color:var(--green);margin-top:2px}
+
+.step-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(139,124,255,.14);border:1px solid rgba(139,124,255,.35);
+  color:#C3B9FF;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;margin-bottom:12px;
+}
+.words-hint{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.words-hint span{
+  font-size:12px;background:var(--card2);border:1px solid var(--line);
+  border-radius:8px;padding:4px 9px;color:var(--muted);
+}
+.timer-mini{font-size:13px;color:var(--muted);text-align:center;margin:10px 0}
+.timer-mini b{color:var(--amber);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">记忆宫殿</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <!-- 阶段 1：布置路线 -->
+  <section id="stageSetup">
+    <div class="step-badge">第 1 步 · 布置你的宫殿</div>
+    <p class="sub" style="margin-bottom:14px;line-height:1.7">
+      用一个你熟悉的地方（家、公司、常走的路线）。每个位置放一个今天要记住的词——位置越固定，越好回忆。
+    </p>
+
+    <div class="route-card">
+      <div class="route-line" id="routeLine"></div>
+    </div>
+
+    <div class="chip-row" style="margin-top:14px">
+      <button class="chip" id="btnFillExample">填个示例</button>
+      <button class="chip" id="btnClear">清空</button>
+    </div>
+
+    <button class="btn btn-primary btn-block" id="btnMemorize" style="margin-top:16px">记好了 · 开始回忆</button>
+    <p class="tip" style="font-size:12px;color:var(--faint);text-align:center;margin-top:10px;line-height:1.7">
+      建议先闭眼在脑海里走一遍路线：门口 → 走廊 → 客厅 → …<br>越想得具体（画面、气味、声音），记得越牢
+    </p>
+  </section>
+
+  <!-- 阶段 2：回忆默写 -->
+  <section id="stageRecall" style="display:none">
+    <div class="step-badge">第 2 步 · 闭眼回走一遍</div>
+    <p class="sub" style="margin-bottom:8px">不看原答案，凭位置回忆填出来。填不出的留空就行。</p>
+    <div class="timer-mini">回忆时间 <b id="recallTimer">0:00</b></div>
+    <div id="recallList"></div>
+    <button class="btn btn-primary btn-block" id="btnSubmitRecall" style="margin-top:14px">提交 · 看结果</button>
+  </section>
+
+  <!-- 阶段 3：结果 -->
+  <section id="stageResult" style="display:none">
+    <div class="step-badge">第 3 步 · 核对与加固</div>
+    <div class="card" style="text-align:center;margin-bottom:14px">
+      <div style="font-size:44px;font-weight:800;font-variant-numeric:tabular-nums" id="scorePct">0%</div>
+      <div class="sub" id="scoreLine">回忆出 0 / 0</div>
+    </div>
+    <div id="resultList"></div>
+    <div class="card" style="margin-top:14px;line-height:1.8;font-size:13.5px;color:var(--muted)">
+      <b style="color:var(--text)">明天怎么复习：</b><br>
+      忘掉的词，明天用<b style="color:var(--violet)">同样的位置</b>再放一次——同一个位置重复建立关联，海马体的记忆痕迹才会稳固。
+    </div>
+    <button class="btn btn-primary btn-block" id="btnAgain" style="margin-top:14px">再来一组新词</button>
+  </section>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">回忆率</div><div class="value" id="bestPct">--</div></div>
+    <div class="stat"><div class="label">练习组数</div><div class="value" id="groups">0</div></div>
+    <div class="stat"><div class="label">待复习</div><div class="value" id="due">0</div></div>
+  </div>
+
+  <div class="section-title">历史记录</div>
+  <div class="record-list" id="recordList"><div class="empty">完成一组后自动保存</div></div>
+
+  <footer class="page-foot">记忆宫殿 = 空间记忆 + 联想编码，是最古老的记忆术之一</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var PLACES = ['大门口','玄关','鞋柜','走廊','客厅','沙发','茶几','厨房','冰箱','阳台','卧室','书桌'];
+  var WORDS_POOL = [
+    '钥匙','西瓜','月亮','眼镜','苹果','雨伞','火车','蝴蝶','冰箱贴','钢琴','信封','灯泡',
+    '橘子','地图','铁锤','鲸鱼','蜡烛','篮球','邮筒','香水','台灯','剪刀','石头','面包'
+  ];
+
+  var el = {};
+  var store = BT.get('palace', { log: [], reviews: [] });
+  var current = []; // [{place, word}]
+  var recallStart = 0;
+  var recallTimerIv = null;
+
+  function init(){
+    el.setup = document.getElementById('stageSetup');
+    el.recall = document.getElementById('stageRecall');
+    el.result = document.getElementById('stageResult');
+    el.routeLine = document.getElementById('routeLine');
+    el.recallList = document.getElementById('recallList');
+
+    buildRoute(6);
+    bindEvents();
+    refreshStats();
+    listRecords();
+  }
+
+  function buildRoute(n){
+    el.routeLine.innerHTML = '';
+    PLACES.slice(0, n).forEach(function(place, i){
+      var d = document.createElement('div');
+      d.className = 'stop';
+      d.innerHTML = '<div class="stop-row">' +
+        '<span class="stop-name">' + place + '</span>' +
+        '<input type="text" placeholder="放一个词" maxlength="8" data-i="' + i + '">' +
+        '</div>';
+      el.routeLine.appendChild(d);
+      d.querySelector('input').addEventListener('input', function(){
+        d.classList.toggle('filled', !!this.value.trim());
+      });
+    });
+  }
+
+  function readRoute(){
+    var inputs = el.routeLine.querySelectorAll('input');
+    var arr = [];
+    Array.prototype.forEach.call(inputs, function(inp, i){
+      var w = inp.value.trim();
+      if(w) arr.push({ place: PLACES[i], word: w });
+    });
+    return arr;
+  }
+
+  function bindEvents(){
+    document.getElementById('btnFillExample').onclick = function(){
+      var words = shuffle(WORDS_POOL.slice()).slice(0, 6);
+      var inputs = el.routeLine.querySelectorAll('input');
+      Array.prototype.forEach.call(inputs, function(inp, i){
+        inp.value = words[i];
+        inp.parentNode.parentNode.classList.add('filled');
+      });
+    };
+    document.getElementById('btnClear').onclick = function(){
+      var inputs = el.routeLine.querySelectorAll('input');
+      Array.prototype.forEach.call(inputs, function(inp){
+        inp.value = '';
+        inp.parentNode.parentNode.classList.remove('filled');
+      });
+    };
+
+    document.getElementById('btnMemorize').onclick = enterRecall;
+    document.getElementById('btnSubmitRecall').onclick = submitRecall;
+    document.getElementById('btnAgain').onclick = function(){
+      current = [];
+      el.result.style.display = 'none';
+      el.setup.style.display = 'block';
+      buildRoute(6);
+      document.getElementById('btnMemorize').textContent = '记好了 · 开始回忆';
+      refreshStats();
+    };
+  }
+
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+    return a;
+  }
+
+  function enterRecall(){
+    current = readRoute();
+    if(current.length < 3){
+      alert('至少填 3 个词，位置太少练不起来');
+      return;
+    }
+    el.setup.style.display = 'none';
+    el.recall.style.display = 'block';
+    el.recallList.innerHTML = '';
+
+    current.forEach(function(item, i){
+      var d = document.createElement('div');
+      d.className = 'recall-item';
+      d.innerHTML = '<span class="recall-idx">' + (i+1) + '</span>' +
+        '<span class="place">' + item.place + '</span>' +
+        '<div><input type="text" maxlength="8" placeholder="这个位置放的什么？" data-i="' + i + '"></div>';
+      el.recallList.appendChild(d);
+    });
+    el.recallList.querySelector('input').focus();
+
+    recallStart = Date.now();
+    document.getElementById('recallTimer').textContent = '0:00';
+    clearInterval(recallTimerIv);
+    recallTimerIv = setInterval(function(){
+      var s = Math.floor((Date.now() - recallStart) / 1000);
+      document.getElementById('recallTimer').textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+    }, 1000);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function submitRecall(){
+    clearInterval(recallTimerIv);
+    var inputs = el.recallList.querySelectorAll('input');
+    var correct = 0;
+    var items = el.recallList.querySelectorAll('.recall-item');
+
+    Array.prototype.forEach.call(inputs, function(inp, i){
+      var val = inp.value.trim();
+      var target = current[i].word;
+      var ok = val && (val === target);
+      if(ok) correct++;
+      inp.disabled = true;
+      var row = items[i];
+      row.classList.add(ok ? 'ok' : 'no');
+      var mark = document.createElement('span');
+      mark.className = 'mark';
+      mark.textContent = ok ? '✓' : '✗';
+      row.appendChild(mark);
+      if(!ok){
+        var ans = document.createElement('div');
+        ans.className = 'ans';
+        ans.textContent = '答案：' + target;
+        row.querySelector('div').appendChild(ans);
+      }
+    });
+
+    var total = current.length;
+    var pct = Math.round(correct / total * 100);
+    document.getElementById('scorePct').textContent = pct + '%';
+    document.getElementById('scorePct').style.color =
+      pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--rose)';
+    document.getElementById('scoreLine').textContent = '回忆出 ' + correct + ' / ' + total + ' 个位置';
+
+    el.recall.style.display = 'none';
+    el.result.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 保存
+    store.log = store.log || [];
+    store.log.push({ date: BT.todayKey(), correct: correct, total: total, pct: pct });
+    store.reviews = store.reviews || [];
+    store.reviews.push({ due: nextDay(), correct: correct, total: total });
+    BT.set('palace', store);
+    BT.reportScore('palace', { correct: correct, total: total, pct: pct });
+    BT.log('palace', { pct: pct, total: total });
+    refreshStats();
+    listRecords();
+    if(navigator.vibrate) navigator.vibrate(30);
+  }
+
+  function nextDay(){
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    return BT.todayKey(d);
+  }
+
+  function refreshStats(){
+    var log = store.log || [];
+    var best = 0;
+    log.forEach(function(r){ if(r.pct > best) best = r.pct; });
+    document.getElementById('bestPct').textContent = log.length ? best + '%' : '--';
+    document.getElementById('groups').textContent = log.length;
+    var due = (store.reviews || []).filter(function(r){ return r.due <= BT.todayKey(); }).length;
+    document.getElementById('due').textContent = due;
+  }
+
+  function listRecords(){
+    var box = document.getElementById('recordList');
+    var log = store.log || [];
+    if(!log.length){ box.innerHTML = '<div class="empty">完成一组后自动保存</div>'; return; }
+    box.innerHTML = log.slice(-12).reverse().map(function(r){
+      return '<div class="record-item"><span>' + r.date + '</span><span>' +
+        r.correct + '/' + r.total + ' · <b>' + r.pct + '%</b></span></div>';
+    }).join('');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

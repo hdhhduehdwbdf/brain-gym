@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>心理旋转 · 空间推理</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.rot-stage{
+  height:clamp(210px,54vw,260px);display:flex;align-items:center;justify-content:center;gap:12%;
+  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  border-radius:20px;margin:14px 0;
+}
+.rot-pair{display:flex;align-items:center;gap:8%;width:100%;justify-content:center}
+.rot-svg{width:clamp(90px,26vw,120px);height:clamp(90px,26vw,120px)}
+.rot-svg path{fill:none;stroke:#8FB2FF;stroke-width:9;stroke-linecap:round;stroke-linejoin:round}
+.rot-svg.mirror path{stroke:#FF8FA5}
+.rot-vs{font-size:17px;color:var(--muted);font-weight:700}
+
+.rot-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.rot-btn{
+  padding:22px 0;border:none;border-radius:16px;font-size:17px;font-weight:800;
+  cursor:pointer;font-family:inherit;color:#fff;transition:transform .1s;user-select:none;
+}
+.rot-btn:active{transform:scale(.95)}
+.rot-btn.same{background:linear-gradient(135deg,#2FA977,#34C98B)}
+.rot-btn.mir{background:linear-gradient(135deg,#B03A50,#E5484D)}
+.rot-btn:disabled{opacity:.35}
+
+.rot-meta{display:flex;justify-content:center;gap:22px;font-size:13px;color:var(--muted);margin:8px 0}
+.rot-meta b{color:var(--text);font-variant-numeric:tabular-nums}
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">心理旋转</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    右边的图形是左边<b style="color:var(--text)">旋转</b>得到的，还是<b style="color:var(--rose)">镜像翻转</b>的？
+  </p>
+
+  <div class="rot-stage">
+    <div class="rot-pair">
+      <svg class="rot-svg" id="svgA" viewBox="0 0 100 100"></svg>
+      <span class="rot-vs">→ ?</span>
+      <svg class="rot-svg" id="svgB" viewBox="0 0 100 100"></svg>
+    </div>
+  </div>
+
+  <div class="rot-meta">
+    <span>第 <b id="tN">0</b>/16</span>
+    <span>正确 <b id="tOk">0</b></span>
+    <span>平均 <b id="tRt">--</b></span>
+  </div>
+
+  <div class="rot-btns">
+    <button class="rot-btn mir" id="btnMirror">镜像 🪞</button>
+    <button class="rot-btn" id="btnSame" style="background:linear-gradient(135deg,#2A4FB0,#3B6FE0)">同一只手 ✋</button>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:10px">开始 · 共 16 题</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b> Shepard &amp; Metzler (1971) 心理旋转实验——发现判断时间与旋转角度<b style="color:var(--text)">线性相关</b>（每转 60° 约多 1 秒），证明大脑真的在"转动"心理图像。<br>
+    <b>练什么：</b>空间推理。看地图找方向、装家具看图纸、理解三维结构，都是这项能力。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最高正确率</div><div class="value" id="bestAcc">--</div></div>
+    <div class="stat"><div class="label">本次平均</div><div class="value" id="thisRt">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">每题不限时 · 正确率优先，速度自然变快</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  // 基准图形：随机生成的折线臂（类似 Sheppard-Metzler 立体臂的 2D 简化）
+  var ARMS = [
+    'M50 50 L50 18 L78 18',
+    'M50 50 L50 14 L26 14 L26 34',
+    'M50 50 L82 50 L82 24 L60 24',
+    'M50 50 L50 20 L74 20 L74 44 L92 44',
+    'M50 50 L20 50 L20 26 L40 26',
+    'M50 50 L50 16 L70 16 L70 38'
+  ];
+
+  var N_TRIALS = 16;
+
+  var el = {
+    a: document.getElementById('svgA'),
+    b: document.getElementById('svgB'),
+    btnSame: document.getElementById('btnSame'),
+    btnMirror: document.getElementById('btnMirror')
+  };
+
+  var trials = [];
+  var idx = -1;
+  var running = false;
+  var correct = 0;
+  var rts = [];
+  var tShow = 0;
+
+  function makePath(d, rot, mirror, cx, cy){
+    var transform = '';
+    if(mirror) transform += ' translate(100 0) scale(-1 1) ';
+    if(rot) transform += ' rotate(' + rot + ' ' + cx + ' ' + cy + ')';
+    return '<path d="' + d + '" transform="' + transform + '"/>';
+  }
+
+  function buildTrials(){
+    var arr = [];
+    for(var i=0;i<N_TRIALS;i++){
+      var base = ARMS[Math.floor(Math.random()*ARMS.length)];
+      var isMirror = Math.random() < 0.5;
+      var rot = [0,60,120,180,240,300][Math.floor(Math.random()*6)];
+      if(!isMirror && rot === 0){
+        // 完全一样太简单，至少转 60
+        rot = [60,120,180,240,300][Math.floor(Math.random()*5)];
+      }
+      arr.push({ base: base, isMirror: isMirror, rot: rot });
+    }
+    return arr;
+  }
+
+  function renderTrial(){
+    var t = trials[idx];
+    el.a.innerHTML = makePath(t.base, 0, false);
+    el.b.innerHTML = makePath(t.base, t.rot, t.isMirror, 50, 50);
+    tShow = performance.now();
+    document.getElementById('tN').textContent = idx+1;
+  }
+
+  function makePath(d, rot, mirror, cx, cy){
+    var tr = '';
+    if(mirror) tr = 'translate(100 0) scale(-1 1) ';
+    if(rot) tr += 'rotate(' + rot + ' 50 50)';
+    return '<path d="' + d + '"' + (tr ? ' transform="' + tr + '"' : '') + '/>';
+  }
+
+  function start(){
+    trials = buildTrials();
+    idx = -1; correct = 0; rts = [];
+    running = true;
+    document.getElementById('btnStart').style.display = 'none';
+    el.btnSame.disabled = false;
+    el.btnMirror.disabled = false;
+    next();
+  }
+
+  function next(){
+    idx++;
+    if(idx >= N_TRIALS){ finish(); return; }
+    renderTrial();
+  }
+
+  function answer(saidMirror){
+    if(!running) return;
+    var t = trials[idx];
+    var rt = performance.now() - tShow;
+    rts.push(rt);
+    if(saidMirror === t.isMirror){
+      correct++;
+      if(navigator.vibrate) navigator.vibrate(12);
+    }else{
+      if(navigator.vibrate) navigator.vibrate(45);
+    }
+    document.getElementById('tRt').textContent = Math.round(rts.reduce(function(a,b){return a+b;},0)/rts.length) + 'ms';
+    setTimeout(next, 220);
+  }
+
+  function finish(){
+    running = false;
+    el.btnSame.disabled = true;
+    el.btnMirror.disabled = true;
+    var acc = correct / N_TRIALS;
+    var avg = rts.reduce(function(a,b){return a+b;},0)/rts.length;
+    var record = { accuracy: acc, rt: Math.round(avg), correct: correct };
+
+    var g = acc >= 0.9 ? { t:'空间旋转很稳', c:'var(--green)' } :
+      acc >= 0.75 ? { t:'良好', c:'var(--blue)' } :
+      acc >= 0.6 ? { t:'及格', c:'var(--amber)' } : { t:'慢慢来，先保证对', c:'var(--rose)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">心理旋转 · 正确率</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + Math.round(acc*100) + '<span style="font-size:18px">%</span></div>';
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">平均 ' + Math.round(avg) + 'ms/题 · 对 ' + correct + '/' + N_TRIALS + '</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一组</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); start(); };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      el.a.innerHTML = ''; el.b.innerHTML = '';
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStart').textContent = '再测一组 · 共 16 题';
+    };
+
+    BT.log('rotation', record);
+    if(BT.reportScore) BT.reportScore('rotation', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(x){ return x.testId === 'rotation'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = 0;
+    acts.forEach(function(x){
+      var e = x.extra || {};
+      if(e.accuracy != null && e.accuracy > best) best = e.accuracy;
+    });
+    document.getElementById('bestAcc').textContent = best ? Math.round(best*100) + '%' : '--';
+    if(last) document.getElementById('thisRt').textContent = last.rt + 'ms';
+  }
+
+  el.btnSame.onclick = function(){ answer(false); };
+  el.btnMirror.onclick = function(){ answer(true); };
+
+  document.addEventListener('keydown', function(e){
+    if(!running) return;
+    if(e.key === 'ArrowLeft' || e.key === '1') answer(true);
+    if(e.key === 'ArrowRight' || e.key === '2') answer(false);
+  });
+
+  document.getElementById('btnStart').onclick = start;
+  refreshStats();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>连线测验 · 认知灵活性</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.tmt-stage{
+  position:relative;height:clamp(340px,92vw,430px);
+  background:linear-gradient(160deg,#1E2445,#171B36);
+  border:1px solid var(--line2);border-radius:20px;margin:14px 0;overflow:hidden;
+  touch-action:none;
+}
+.tmt-stage svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.node{
+  position:absolute;width:15.5%;aspect-ratio:1;border-radius:50%;
+  background:#262C4C;border:2px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(13px,4vw,16px);font-weight:800;color:var(--text);
+  cursor:pointer;user-select:none;transition:background .12s,border-color .12s,transform .1s;
+}
+.node:active{transform:scale(.93)}
+.node.done{background:#1E4A38;border-color:rgba(52,201,139,.55);color:var(--green)}
+.node.next{border-color:rgba(91,140,255,.7);box-shadow:0 0 14px rgba(91,140,255,.4)}
+.node.wrong{background:#5A2233;border-color:rgba(229,72,77,.6);animation:shake .3s}
+.node.a{border-bottom:3px solid rgba(91,140,255,.5)}
+.node.b{border-top:3px solid rgba(240,166,75,.55)}
+
+.tmt-meta{display:flex;justify-content:center;gap:22px;font-size:13.5px;color:var(--muted);margin:8px 0}
+.tmt-meta b{color:var(--text);font-variant-numeric:tabular-nums}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">连线测验</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="seg" id="modeSeg" style="margin-bottom:10px">
+    <button data-mode="num" class="active">1→8 数字</button>
+    <button data-mode="alt">1-甲-2-乙 交替</button>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px" id="hint">
+    按顺序点：1 → 2 → 3 … 连错会抖动提示
+  </p>
+
+  <div class="tmt-stage" id="stage">
+    <svg id="lines"></svg>
+  </div>
+
+  <div class="tmt-meta">
+    <span>用时 <b id="timer">0.0s</b></span>
+    <span>错误 <b id="errs">0</b></span>
+    <span>进度 <b id="prog">0/8</b></span>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:8px">开始</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>Trail Making Test（陆军个体测验 1944）——A 部分测加工速度，B 部分（数字字母交替）测<b style="color:var(--text)">认知灵活性/任务切换</b>。B-A 差值是执行功能的经典指标。<br>
+    <b>练什么：</b>在两条规则间来回切换不出错。一边听人说一边查资料、多任务切换不乱，用的就是这套能力。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">A 最佳</div><div class="value" id="bestA">--</div></div>
+    <div class="stat"><div class="label">B 最佳</div><div class="value" id="bestB">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">交替模式更难 · B/A 比值反映切换成本</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var NUM_LABELS = ['1','2','3','4','5','6','7','8'];
+  var ALT_LABELS = ['1','甲','2','乙','3','丙','4','丁'];
+
+  var el = {
+    stage: document.getElementById('stage'),
+    lines: document.getElementById('lines'),
+    hint: document.getElementById('hint')
+  };
+
+  var mode = 'num';
+  var labels = [];
+  var order = [];    // 正确点击顺序对应的节点 index
+  var nodes = [];    // DOM 元素
+  var nodePos = [];  // [{x%, y%}]
+  var step = 0;
+  var errs = 0;
+  var t0 = 0;
+  var timerIv = null;
+  var running = false;
+
+  function buildNodes(){
+    el.stage.querySelectorAll('.node').forEach(function(n){ n.remove(); });
+    nodes = []; nodePos = [];
+    // 生成不重叠的随机位置（网格抖动法）
+    var cells = [];
+    for(var gx=0;gx<4;gx++) for(var gy=0;gy<3;gy++) cells.push([gx,gy]);
+    for(var i=cells.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = cells[i]; cells[i]=cells[j]; cells[j]=t;
+    }
+    cells = cells.slice(0, 8);
+    cells.forEach(function(c, k){
+      var x = 12 + c[0]*25 + (Math.random()*8-4);
+      var y = 14 + c[1]*34 + (Math.random()*8-4);
+      x = Math.max(10, Math.min(88, x));
+      y = Math.max(10, Math.min(88, y));
+      nodePos[k] = { x:x, y:y };
+    });
+
+    labels.forEach(function(lb, i){
+      var d = document.createElement('div');
+      d.className = 'node';
+      d.style.left = (nodePos[i].x - 7.75) + '%';
+      d.style.top = (nodePos[i].y - 11) + '%';
+      d.textContent = lbText(i);
+      if(mode === 'alt'){
+        d.classList.add(i % 2 === 0 ? 'a' : 'b');
+      }
+      d.dataset.i = i;
+      d.addEventListener('click', function(){ tapNode(i, d); });
+      el.stage.appendChild(d);
+      nodes.push(d);
+    });
+    markNext();
+  }
+
+  function lbText(i){
+    return labels[i];
+  }
+
+  function expectedLabel(){
+    if(mode === 'num') return NUM_LABELS[step];
+    return ALT_LABELS[step];
+  }
+
+  function markNext(){
+    nodes.forEach(function(n, i){ n.classList.remove('next'); });
+    if(step < 8){
+      var idx = order()[step];
+      if(idx != null) nodes[idx].classList.add('next');
+    }
+  }
+
+  // 交替模式的正确顺序就是节点创建顺序（labels 数组即顺序），数字模式同理
+  function order(){
+    var arr = [];
+    for(var i=0;i<8;i++) arr.push(i);
+    return arr;
+  }
+
+  function drawLine(fromIdx, toIdx){
+    var a = nodePos[fromIdx], b = nodePos[toIdx];
+    var line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', a.x + '%');
+    line.setAttribute('y1', a.y + '%');
+    line.setAttribute('x2', b.x + '%');
+    line.setAttribute('y2', b.y + '%');
+    line.setAttribute('stroke', 'rgba(91,140,255,.55)');
+    line.setAttribute('stroke-width', '2.5');
+    line.setAttribute('stroke-linecap', 'round');
+    el.lines.appendChild(line);
+  }
+
+  function start(){
+    labels = mode === 'num' ? NUM_LABELS : ALT_LABELS;
+    step = 0; errs = 0;
+    el.lines.innerHTML = '';
+    running = true;
+    buildNodes();
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('errs').textContent = '0';
+    document.getElementById('prog').textContent = '0/8';
+    t0 = performance.now();
+    timerIv = setInterval(function(){
+      document.getElementById('timer').textContent = ((performance.now()-t0)/1000).toFixed(1) + 's';
+    }, 100);
+    el.hint.textContent = mode === 'num' ? '按 1→2→3…顺序点' : '按 1→甲→2→乙…顺序点';
+  }
+
+  function tapNode(i, node){
+    if(!running) return;
+    if(i === step){
+      node.classList.add('right');
+      node.classList.remove('next');
+      if(step > 0) drawLine(step-1, step);
+      step++;
+      document.getElementById('prog').textContent = step + '/8';
+      if(step >= 8){
+        finish();
+      }else{
+        markNext();
+      }
+    }else{
+      errs++;
+      document.getElementById('errs').textContent = errs;
+      node.classList.add('wrong');
+      setTimeout(function(){ node.classList.remove('wrong'); }, 320);
+      if(navigator.vibrate) navigator.vibrate(40);
+    }
+  }
+
+  function finish(){
+    clearInterval(timerIv);
+    running = false;
+    var sec = (performance.now() - t0)/1000;
+    document.getElementById('timer').textContent = sec.toFixed(1) + 's';
+
+    var base = mode === 'num' ? { good:12, mid:20 } : { good:25, mid:40 };
+    var g = sec <= base.good ? { t:'切换流畅', c:'var(--green)' } :
+      sec <= base.mid ? { t:'正常水平', c:'var(--blue)' } : { t:'可以再练练', c:'var(--amber)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">' + (mode === 'num' ? 'A 部分' : 'B 部分') + ' 用时</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + sec.toFixed(1) + '<span style="font-size:18px">s</span></div>';
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">错误 ' + errs + ' 次</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">换个模式再测</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){
+      ov.remove();
+      if(mode === 'num') switchMode('alt');
+      else switchMode('num');
+      start();
+    };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStart').textContent = '再测一次';
+    };
+
+    var record = { sec:+sec.toFixed(1), errors:errs, mode:mode };
+    BT.log('tmt', record);
+    if(BT.reportScore) BT.reportScore('tmt', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function switchMode(m){
+    mode = m;
+    Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(b){
+      b.classList.toggle('active', b.dataset.mode === m);
+    });
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'tmt'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var bA = null, bB = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.mode === 'num' && e.sec != null && (bA === null || e.sec < bA)) bA = e.sec;
+      if(e.mode === 'alt' && e.sec != null && (bB === null || e.sec < bB)) bB = e.sec;
+    });
+    document.getElementById('bestA').textContent = bA != null ? bA + 's' : '--';
+    document.getElementById('bestB').textContent = bB != null ? bB + 's' : '--';
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(b){
+    b.onclick = function(){
+      if(running) return;
+      switchMode(b.dataset.mode);
+      el.hint.textContent = mode === 'num' ? '按 1→2→3…顺序点' : '按 1→甲→2→乙…顺序点';
+    };
+  });
+
+  document.getElementById('btnStart').onclick = start;
+  labels = NUM_LABELS;
+  buildNodes();
+  refreshStats();
+})();
+</script>
+</body>
+</html>

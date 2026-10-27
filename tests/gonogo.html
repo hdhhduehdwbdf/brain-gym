@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>Go / No-Go · 冲动抑制</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.gg-stage{
+  height:clamp(200px,52vw,260px);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  border-radius:20px;margin:14px 0;position:relative;overflow:hidden;
+}
+.gg-stim{
+  width:130px;height:130px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;font-weight:900;color:#fff;
+  transition:background .1s;animation:popIn .15s;
+  box-shadow:0 12px 36px rgba(0,0,0,.4);
+}
+.gg-stim.go{background:radial-gradient(circle at 35% 30%,#4ADE8C,#22A96B)}
+.gg-stim.no{background:radial-gradient(circle at 35% 30%,#FF7B92,#E5484D)}
+.gg-stim.idle{background:var(--card2);color:var(--faint);font-size:16px;font-weight:600;animation:none;box-shadow:none}
+
+.tap-hint{
+  position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-size:12px;color:var(--muted);
+}
+.gg-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.gg-btn{
+  padding:24px 0;border:none;border-radius:16px;font-size:18px;font-weight:800;
+  cursor:pointer;font-family:inherit;transition:transform .1s;user-select:none;color:#fff;
+}
+.gg-btn:active{transform:scale(.95)}
+.gg-btn.go-b{background:linear-gradient(135deg,#2FA977,#34C98B)}
+.gg-btn.no-b{background:linear-gradient(135deg,#8A3348,#B03A50)}
+
+.live-stats{display:flex;justify-content:center;gap:22px;font-size:13px;color:var(--muted);margin:10px 0}
+.live-stats b{color:var(--text);font-variant-numeric:tabular-nums}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">Go / No-Go</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    绿色圆 → 马上点 <b style="color:var(--green)">GO</b>；红色圆 → <b style="color:var(--rose)">忍住不按</b>
+  </p>
+
+  <div class="gg-stage">
+    <div class="gg-stim idle" id="stim">?</div>
+    <div class="tap-hint">点下方 GO 按钮，或直接点圆圈本身 · 共 24 轮</div>
+  </div>
+
+  <div class="live-stats">
+    <span>连续正确 <b id="streak">0</b></span>
+    <span>误点 <b id="comm">0</b></span>
+    <span>平均 <b id="avgRt">--</b></span>
+  </div>
+
+  <div class="gg-btns">
+    <button class="gg-btn go-b" id="btnGo">GO ✓</button>
+    <button class="gg-btn no-b" id="btnWait">（红圆时别点）</button>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:14px">开始 · 共 24 轮</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>Go/No-Go 范式——大多数时候要你行动，偶尔要你忍住。"该忍没忍"的次数叫 Commission Error，是冲动控制的直接指标。<br>
+    <b>练什么：</b>冲动刹车。群里想抢话、购物车想下单、会上想打断人，用的都是同一块刹车。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最快反应</div><div class="value" id="bestRt">--</div></div>
+    <div class="stat"><div class="label">最少误点</div><div class="value" id="bestComm">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">全程约 1 分钟 · 误点越少，刹车越灵</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var N_TRIALS = 24;
+  var GO_RATIO = 0.72;
+  var STIM_MS = 900;
+  var ISI_MIN = 400, ISI_MAX = 900;
+
+  var el = {
+    stim: document.getElementById('stim'),
+    streak: document.getElementById('streak'),
+    comm: document.getElementById('comm'),
+    avgRt: document.getElementById('avgRt')
+  };
+
+  var seq = [];
+  var idx = -1;
+  var running = false;
+  var awaiting = false;
+  var curIsGo = false;
+  var tShow = 0;
+  var rts = [];
+  var commissions = 0;
+  var streakN = 0;
+  var trialTimer = null;
+  var fbTimer = null;
+  var isiTimer = null;
+
+  function buildSeq(){
+    var arr = [];
+    var nGo = Math.round(N_TRIALS * GO_RATIO);
+    var nNo = N_TRIALS - nGo;
+    for(var i=0;i<nGo;i++) arr.push(true);
+    for(var j=0;j<nNo;j++) arr.push(false);
+    for(var k=arr.length-1;k>0;k--){
+      var m = Math.floor(Math.random()*(k+1));
+      var t = arr[k]; arr[k]=arr[m]; arr[m]=t;
+    }
+    return arr;
+  }
+
+  function start(){
+    seq = buildSeq();
+    idx = -1; rts = []; commissions = 0; streakN = 0;
+    running = true;
+    el.comm.textContent = '0';
+    el.streak.textContent = '0';
+    el.avgRt.textContent = '--';
+    document.getElementById('btnStart').style.display = 'none';
+    nextTrial();
+  }
+
+  function nextTrial(){
+    idx++;
+    if(idx >= N_TRIALS){ finish(); return; }
+    curIsGo = seq[idx];
+    el.stim.className = 'gg-stim ' + (curIsGo ? 'go' : 'no');
+    el.stim.textContent = curIsGo ? 'GO!' : '停';
+    awaiting = true;
+    tShow = performance.now();
+
+    clearTimeout(trialTimer);
+    trialTimer = setTimeout(function(){
+      if(!awaiting) return;
+      awaiting = false;
+      if(curIsGo){
+        streakN = 0;
+        el.streak.textContent = '0';
+        showStim('漏了', 'idle');
+      }
+      isiTimer = setTimeout(nextTrial, 350);
+    }, STIM_MS);
+  }
+
+  function showStim(txt, cls, color){
+    el.stim.className = 'gg-stim ' + cls;
+    el.stim.textContent = txt;
+    if(cls === 'ok') el.stim.style.color = 'var(--green)';
+    else if(cls === 'bad') el.stim.style.color = 'var(--rose)';
+    clearTimeout(fbTimer);
+    fbTimer = setTimeout(function(){
+      el.stim.style.color = '';
+    }, 300);
+  }
+
+  function goPress(){
+    if(!running) return;
+    if(!awaiting){
+      // 抢按：提前按钮
+      streakN = 0;
+      el.streak.textContent = '0';
+      showStim('太快', 'bad');
+      return;
+    }
+    awaiting = false;
+    clearTimeout(trialTimer);
+    if(curIsGo){
+      var rt = performance.now() - tShow;
+      rts.push(rt);
+      streakN++;
+      el.streak.textContent = streakN;
+      el.avgRt.textContent = Math.round(rts.reduce(function(a,b){return a+b;},0)/rts.length) + 'ms';
+      showStim(Math.round(rt) + 'ms', 'ok');
+    }else{
+      commissions++;
+      streakN = 0;
+      el.comm.textContent = commissions;
+      showStim('误点!', 'bad');
+      if(navigator.vibrate) navigator.vibrate(50);
+    }
+    isiTimer = setTimeout(nextTrial, 400);
+  }
+
+  function waitPress(){
+    // 红圆时点"不按"按钮 = 正确抑制
+    if(!running || !awaiting || curIsGo) return;
+    awaiting = false;
+    clearTimeout(trialTimer);
+    streakN++;
+    el.streak.textContent = streakN;
+    showStim('忍住 ✓', 'ok');
+    isiTimer = setTimeout(nextTrial, 350);
+  }
+
+  function mean(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : null; }
+
+  function finish(){
+    running = false;
+    clearTimeout(trialTimer); clearTimeout(isiTimer);
+    var avg = mean(rts);
+    var record = {
+      rt: avg != null ? Math.round(avg) : null,
+      commission: commissions,
+      nGo: rts.length
+    };
+
+    var g = commissions === 0 ? { t:'刹车很灵', c:'var(--green)' } :
+      commissions <= 2 ? { t:'正常水平', c:'var(--blue)' } :
+      commissions <= 4 ? { t:'有点冲动', c:'var(--amber)' } : { t:'刹车偏弱', c:'var(--rose)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">Go / No-Go 本轮</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + (commissions === 0 ? '零误点' : commissions + '<span style="font-size:18px">次误点</span>') + '</div>';
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">平均反应 ' + (avg != null ? Math.round(avg) + 'ms' : '--') + ' · Go 命中 ' + rts.length + '</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一组</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); start(); };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      el.stim.className = 'gg-stim idle';
+      el.stim.textContent = '?';
+      document.getElementById('btnStart').style.display = 'block';
+       document.getElementById('btnStart').textContent = '再测一组 · 共 24 轮';
+    };
+
+    BT.log('gonogo', record);
+    if(BT.reportScore) BT.reportScore('gonogo', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'gonogo'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var bestRt = null, bestComm = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.rt != null && (bestRt === null || e.rt < bestRt)) bestRt = e.rt;
+      if(e.commission != null && (bestComm === null || e.commission < bestComm)) bestComm = e.commission;
+    });
+    document.getElementById('bestRt').textContent = bestRt != null ? bestRt + 'ms' : '--';
+    document.getElementById('bestComm').textContent = bestComm != null ? bestComm : '--';
+  }
+
+  document.getElementById('btnGo').addEventListener('click', goPress);
+  document.getElementById('btnWait').addEventListener('click', waitPress);
+  el.stim.addEventListener('click', goPress);
+
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space'){
+      e.preventDefault();
+      goPress();
+    }
+  });
+
+  document.getElementById('btnStart').onclick = start;
+  refreshStats();
+})();
+</script>
+</body>
+</html>

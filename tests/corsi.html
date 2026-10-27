@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>Corsi 方块 · 视空间记忆</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.cs-stage{
+  position:relative;height:clamp(300px,80vw,380px);
+  background:linear-gradient(160deg,#1E2445,#171B36);
+  border:1px solid var(--line2);border-radius:20px;margin:14px 0;overflow:hidden;
+}
+.block{
+  position:absolute;width:17%;aspect-ratio:1;border-radius:14px;
+  background:#262C4C;border:1px solid var(--line2);cursor:pointer;
+  transition:background .15s,transform .1s,box-shadow .15s;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0;user-select:none;
+}
+.block:active{transform:scale(.95)}
+.block.lit{background:radial-gradient(circle at 40% 35%,#6FA0FF,#3B6FE0);box-shadow:0 0 26px rgba(91,140,255,.6)}
+.block.wrong{background:#5A2233}
+.block.right{background:radial-gradient(circle at 40% 35%,#4ADE8C,#22A96B)}
+.block.num{font-size:15px;font-weight:800;color:#fff}
+
+.span-big{
+  text-align:center;font-size:15px;color:var(--muted);margin:2px 0 8px;
+}
+.span-big b{color:var(--text);font-size:20px;font-variant-numeric:tabular-nums}
+
+.lives{display:flex;gap:7px;justify-content:center;margin:6px 0}
+.lives i{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.15);transition:.3s}
+.lives i.on{background:var(--green);box-shadow:0 0 9px rgba(52,201,139,.6)}
+.lives i.lost{background:var(--rose)}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">Corsi 方块</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    方块会按顺序亮起，<b style="color:var(--text)">按同样顺序</b>点回去
+  </p>
+
+  <div class="cs-stage" id="stage"></div>
+
+  <div class="span-big">当前级别 <b id="spanNow">3</b> 格 · 顺序点亮</div>
+  <div class="lives" id="lives"><i class="on"></i><i class="on"></i></div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:8px">开始</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>Corsi Block-Tapping（1972）——视觉空间版的"数字广度"。健康成人平均空间跨度 5-6 格。数字广度测言语记忆，Corsi 测空间记忆，两条通道独立。<br>
+    <b>练什么：</b>空间工作记忆。记路、记布局、脑中"摆放"信息的能力——记忆宫殿的空间底座就是它。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最高跨度</div><div class="value" id="bestSpan">--</div></div>
+    <div class="stat"><div class="label">本次跨度</div><div class="value" id="thisSpan">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">成人平均 5-6 格 · 8 格以上非常优秀</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var LIVES_MAX = 2;
+
+  var el = {
+    stage: document.getElementById('stage'),
+    spanNow: document.getElementById('spanNow'),
+    lives: document.getElementById('lives')
+  };
+
+  // 9 个方块，固定布局（近似标准 Corsi 的不规则排布）
+  var LAYOUT = [
+    [4,8],[22,4],[44,10],[68,6],[84,22],
+    [8,34],[30,40],[56,38],[78,52]
+  ];
+  // 每个方块的邻接关系（用于避免选中太近的序列——简化处理：纯随机不重复即可）
+
+  var blocks = [];   // DOM
+  var span = 3;
+  var lives = LIVES_MAX;
+  var seq = [];
+  var input = [];
+  var phase = 'idle'; // idle | show | input | done
+  var showTimer = null;
+  var bestSpan = 0;
+
+  function buildBlocks(){
+    el.stage.innerHTML = '';
+    blocks = [];
+    LAYOUT.forEach(function(pos, i){
+      var b = document.createElement('div');
+      b.className = 'block';
+      b.style.left = pos[0] + '%';
+      b.style.top = pos[1] + '%';
+      b.dataset.i = i;
+      b.addEventListener('click', function(){ tapBlock(i); });
+      el.stage.appendChild(b);
+      blocks.push(b);
+    });
+  }
+
+  function genSeq(len){
+    var arr = [];
+    var pool = [];
+    for(var i=0;i<LAYOUT.length;i++) pool.push(i);
+    // 打乱后取前 len（保证不重复）
+    for(var j=pool.length-1;j>0;j--){
+      var k = Math.floor(Math.random()*(j+1));
+      var t = pool[j]; pool[j]=pool[k]; pool[k]=t;
+    }
+    arr = pool.slice(0, len);
+    return arr;
+  }
+
+  function start(){
+    span = 3; lives = LIVES_MAX;
+    el.spanNow.textContent = span;
+    renderLives();
+    document.getElementById('btnStart').style.display = 'none';
+    playRound();
+  }
+
+  function renderLives(){
+    var html = '';
+    for(var i=0;i<LIVES_MAX;i++){
+      html += '<i class="' + (i < lives ? 'on' : 'lost') + '"></i>';
+    }
+    el.lives.innerHTML = html;
+  }
+
+  function playRound(){
+    seq = genSeq(span);
+    input = [];
+    phase = 'show';
+    el.spanNow.textContent = span;
+    // 依次点亮
+    var i = 0;
+    function lightNext(){
+      if(i >= seq.length){
+        setTimeout(function(){
+          phase = 'input';
+          document.getElementById('spanNow').textContent = span;
+        }, 350);
+        return;
+      }
+      var b = blocks[seq[i]];
+      b.classList.add('lit');
+      setTimeout(function(){ b.classList.remove('lit'); }, 420);
+      i++;
+      setTimeout(lightNext, 580);
+    }
+    setTimeout(lightNext, 500);
+  }
+
+  function tapBlock(i){
+    if(phase !== 'input') return;
+    var expected = seq[input.length];
+    if(i === expected){
+      var b = blocks[i];
+      b.classList.add('right');
+      setTimeout(function(){ b.classList.remove('right'); }, 250);
+      input.push(i);
+      if(input.length >= seq.length){
+        // 通过！升级
+        phase = 'wait';
+        bestSpan = Math.max(bestSpan, span);
+        setTimeout(function(){
+          span++;
+          if(span > 9){ finish(true); return; }
+          playRound();
+        }, 600);
+      }
+    }else{
+      // 错
+      var b2 = blocks[i];
+      b2.classList.add('wrong');
+      setTimeout(function(){ b2.classList.remove('wrong'); }, 400);
+      if(navigator.vibrate) navigator.vibrate(60);
+      lives--;
+      renderLives();
+      if(lives <= 0){ finish(false); return; }
+      // 同级别重试
+      phase = 'show';
+      setTimeout(playRound, 700);
+    }
+  }
+
+  function finish(maxed){
+    phase = 'done';
+    var finalSpan = span; // 通过的最高级
+    var record = { span: bestSpan, maxed: !!maxed };
+
+    var g = bestSpan >= 7 ? { t:'空间记忆超群', c:'var(--green)' } :
+      bestSpan >= 5 ? { t:'达到成人平均', c:'var(--blue)' } :
+      bestSpan >= 4 ? { t:'接近平均', c:'var(--amber)' } : { t:'继续练', c:'var(--rose)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">Corsi 空间跨度</div>';
+    html += '<div class="big" style="color:' + g.c + '">' + bestSpan + '<span style="font-size:18px">格</span></div>';
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">' + (maxed ? '已到 9 格上限，恐怖如斯' : '两条命用完了') + '</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再来一次</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); start(); };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStart').textContent = '再测一次';
+    };
+
+    BT.log('corsi', record);
+    if(BT.reportScore) BT.reportScore('corsi', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'corsi'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = 0;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.span != null && e.span > best) best = e.span;
+    });
+    document.getElementById('bestSpan').textContent = best || '--';
+    if(last) document.getElementById('thisSpan').textContent = last.span;
+  }
+
+  document.getElementById('btnStart').onclick = start;
+  buildBlocks();
+  refreshStats();
+})();
+</script>
+</body>
+</html>

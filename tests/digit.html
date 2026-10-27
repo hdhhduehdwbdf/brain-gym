@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>数字广度 · 工作记忆训练</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.stage{
+  display:flex;align-items:center;justify-content:center;
+  height:clamp(180px,42vw,220px);margin:18px 0;
+}
+.digit-card{
+  width:100%;max-width:400px;height:100%;border-radius:22px;
+  background:linear-gradient(150deg,#232A50,#1A1F3A);
+  border:1px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(30px,9vw,46px);font-weight:800;letter-spacing:.14em;
+  font-variant-numeric:tabular-nums;
+  box-shadow:0 18px 44px rgba(0,0,0,.4);
+  transition:opacity .3s,transform .3s,filter .3s;
+  position:relative;overflow:hidden;
+}
+.digit-card.masked{color:transparent;filter:blur(6px);opacity:.55;letter-spacing:.14em}
+.digit-card.masked::after{
+  content:"?";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--faint);font-size:44px;filter:none;letter-spacing:0;
+}
+.digit-card.idle{color:var(--faint);font-size:20px;letter-spacing:1px;font-weight:600}
+.digit-card.pop{animation:popIn .35s}
+
+.countdown{
+  position:absolute;bottom:12px;left:0;right:0;text-align:center;
+  font-size:12px;color:var(--muted);letter-spacing:1px;
+}
+.countdown .bar{width:60%;height:3px;background:rgba(255,255,255,.1);border-radius:3px;margin:7px auto 0;overflow:hidden}
+.countdown .bar i{display:block;height:100%;background:var(--blue);border-radius:3px;transition:width .2s linear}
+
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:6px 0 4px}
+.key{
+  padding:16px 0;border-radius:14px;border:1px solid var(--line2);background:var(--card2);
+  color:var(--text);font-size:22px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:transform .1s,background .1s;user-select:none;
+}
+.key:active{transform:scale(.94);background:#28305A}
+.key.wide{grid-column:span 1;font-size:17px}
+
+.answer-display{
+  min-height:52px;background:var(--card2);border:1px solid var(--line2);border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums;
+  color:var(--text);margin-bottom:10px;padding:8px;
+}
+.answer-display .ph{font-size:14px;color:var(--faint);letter-spacing:0;font-weight:500}
+
+.ladder{display:flex;gap:5px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap}
+.ladder .lv{
+  width:30px;height:30px;border-radius:9px;background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--faint);font-weight:700;
+  transition:.2s;
+}
+.ladder .lv.done{background:rgba(52,201,139,.16);border-color:rgba(52,201,139,.45);color:var(--green)}
+.ladder .lv.now{background:rgba(91,140,255,.2);border-color:rgba(91,140,255,.6);color:#9DB8FF;transform:scale(1.1)}
+
+.tip{font-size:12.5px;color:var(--faint);text-align:center;line-height:1.7;margin-top:14px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">数字广度</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <div class="seg" id="modeSeg" style="margin-bottom:10px">
+    <button data-mode="back" class="active">倒背 · 更难</button>
+    <button data-mode="fwd">正背 · 热身</button>
+  </div>
+
+  <div class="chip-row" style="margin-bottom:8px">
+    <button class="chip" data-speed="1200">记忆 1.2s</button>
+    <button class="chip active" data-speed="3000">记忆 3s</button>
+    <button class="chip" data-speed="5000">记忆 5s</button>
+  </div>
+
+  <div class="stage">
+    <div class="digit-card idle pop" id="card">准备好就开始</div>
+  </div>
+
+  <div class="ladder" id="ladder"></div>
+  <p class="status-line" id="status">当前目标 <span class="strong" id="curLen">3</span> 位 · 答对升级，答错降一档</p>
+
+  <div class="answer-display" id="answerBox"><span class="ph">用下方数字键作答</span></div>
+
+  <div class="pad" id="pad">
+    <button class="key" data-k="1">1</button>
+    <button class="key" data-k="2">2</button>
+    <button class="key" data-k="3">3</button>
+    <button class="key" data-k="4">4</button>
+    <button class="key" data-k="5">5</button>
+    <button class="key" data-k="6">6</button>
+    <button class="key" data-k="7">7</button>
+    <button class="key" data-k="8">8</button>
+    <button class="key" data-k="9">9</button>
+    <button class="key wide" data-k="del">←</button>
+    <button class="key" data-k="0">0</button>
+    <button class="key wide" data-k="ok">提交</button>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:12px">开始本轮</button>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">历史最佳</div><div class="value" id="best">--</div></div>
+    <div class="stat"><div class="label">今日最佳</div><div class="value" id="todayBest">--</div></div>
+    <div class="stat"><div class="label">训练天数</div><div class="value" id="days">0</div></div>
+  </div>
+
+  <div class="section-title">训练记录</div>
+  <div class="record-list" id="recordList"><div class="empty">完成一轮后自动保存</div></div>
+
+  <div class="tip">成年人倒背平均 4-5 位，正背 6-7 位<br>坚持两周，倒背位数通常能提升 1-2 位</div>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var el = {
+    card: document.getElementById('card'),
+    status: document.getElementById('status'),
+    curLen: document.getElementById('curLen'),
+    answerBox: document.getElementById('answerBox'),
+    btnStart: document.getElementById('btnStart'),
+    ladder: document.getElementById('ladder'),
+    pad: document.getElementById('pad')
+  };
+
+  var mode = 'back';
+  var memMs = 3000;
+  var curLen = 3;
+  var target = '';
+  var answer = '';
+  var phase = 'idle'; // idle | showing | answering
+  var timers = [];
+  var ladderMax = 9;
+
+  var records = BT.get('digit', []);
+
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+  function genDigits(len){
+    var s = '';
+    for(var i=0;i<len;i++) s += Math.floor(Math.random()*10);
+    return s;
+  }
+
+  function renderLadder(){
+    var html = '';
+    for(var i=1;i<=ladderMax;i++){
+      var cls = i < curLen ? 'done' : i === curLen ? 'now' : '';
+      html += '<div class="lv ' + cls + '">' + i + '</div>';
+    }
+    el.ladder.innerHTML = html;
+  }
+
+  function renderAnswer(){
+    if(!answer) el.answerBox.innerHTML = '<span class="ph">用下方数字键作答</span>';
+    else el.answerBox.textContent = answer;
+  }
+
+  function start(){
+    if(phase === 'showing') return;
+    clearTimers();
+    target = genDigits(curLen);
+    answer = '';
+    phase = 'showing';
+
+    el.card.classList.remove('idle', 'masked');
+    el.card.classList.add('pop');
+    el.card.innerHTML = target +
+      '<div class="countdown">记住这 ' + curLen + ' 位数字<div class="bar"><i id="cdBar" style="width:100%"></i></div></div>';
+    el.status.innerHTML = '记忆中… 记住后输入<span class="strong">' + (mode === 'back' ? '倒序' : '正序') + '</span>';
+    el.btnStart.disabled = true;
+    el.btnStart.textContent = '记忆进行中…';
+    renderAnswer();
+
+    // 倒计时条
+    var bar = document.getElementById('cdBar');
+    var t0 = Date.now();
+    var iv = setInterval(function(){
+      var p = Math.max(0, 1 - (Date.now() - t0) / memMs);
+      var b = document.getElementById('cdBar');
+      if(b) b.style.width = (p*100) + '%';
+      if(p <= 0) clearInterval(iv);
+    }, 50);
+    timers.push(iv);
+
+    timers.push(setTimeout(function(){
+      clearInterval(iv);
+      phase = 'answering';
+      el.card.innerHTML = '已隐藏';
+      el.card.classList.add('masked');
+      el.status.innerHTML = '请输入<span class="strong">' + (mode === 'back' ? '倒序' : '正序') + '</span>数字';
+      el.btnStart.disabled = false;
+      el.btnStart.textContent = '重新开始';
+      renderAnswer();
+    }, memMs));
+  }
+
+  function submit(){
+    if(phase !== 'answering' || !answer) return;
+    var correct = mode === 'back' ? target.split('').reverse().join('') : target;
+    var ok = answer === correct;
+    var sec = (memMs/1000).toFixed(1);
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    if(ok){
+      html += '<div class="big" style="color:var(--green)">✓</div>';
+      html += '<div class="grade" style="color:var(--green)">' + curLen + ' 位通过</div>';
+      html += '<div class="sub2">原数字 ' + target + ' · 你的答案 ' + answer + '</div>';
+      html += '<div class="overlay-actions"><button class="btn btn-primary btn-block" id="ovNext">挑战 ' + (curLen+1) + ' 位</button>' +
+              '<button class="btn btn-ghost btn-block" id="ovClose">先歇一下</button></div>';
+    }else{
+      html += '<div class="big" style="color:var(--rose)">✗</div>';
+      html += '<div class="grade" style="color:var(--rose)">正确答案 ' + correct + '</div>';
+      html += '<div class="sub2">原数字 ' + target + ' · 你的答案 ' + answer + '</div>';
+      html += '<div class="overlay-actions"><button class="btn btn-primary btn-block" id="ovNext">再来一次 ' + curLen + ' 位</button>' +
+              '<button class="btn btn-ghost btn-block" id="ovClose">结束本轮</button></div>';
+    }
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    var ov = document.querySelector('.overlay');
+    function close(){ ov.remove(); }
+
+    if(ok){
+      saveRecord(curLen);
+      curLen = Math.min(curLen + 1, ladderMax);
+      el.curLen.textContent = curLen;
+      renderLadder();
+      document.getElementById('ovNext').onclick = function(){ close(); start(); };
+      document.getElementById('ovClose').onclick = function(){
+        close();
+        phase = 'idle';
+        el.card.className = 'digit-card idle pop';
+        el.card.textContent = '休息一下，随时继续';
+        el.status.innerHTML = '当前目标 <span class="strong">' + curLen + '</span> 位';
+        el.btnStart.textContent = '开始本轮';
+      };
+    }else{
+      saveRecord(curLen - 1);
+      var prevLen = curLen;
+      curLen = Math.max(3, curLen - 1);
+      el.curLen.textContent = curLen;
+      renderLadder();
+      document.getElementById('ovNext').onclick = function(){ close(); start(); };
+      document.getElementById('ovClose').onclick = function(){
+        close();
+        // 全部结束：回到 3 位
+        curLen = 3; el.curLen.textContent = curLen; renderLadder();
+        phase = 'idle';
+        el.card.className = 'digit-card idle pop';
+        el.card.textContent = '本轮结束 · 最高 ' + prevLen + ' 位';
+        el.status.innerHTML = '已回到起点，当前目标 <span class="strong">3</span> 位';
+        el.btnStart.textContent = '开始新一轮';
+      };
+    }
+
+    if(navigator.vibrate) navigator.vibrate(ok ? [15,30,15] : 60);
+    BT.log('digit', { len: curLen, mode: mode, ok: ok });
+    refreshStats();
+  }
+
+  function saveRecord(len){
+    if(len < 1) return;
+    var today = BT.todayKey();
+    var idx = -1;
+    for(var i=0;i<records.length;i++) if(records[i].date === today) idx = i;
+    if(idx >= 0){
+      if(len > records[idx].maxLen) records[idx].maxLen = len;
+    }else{
+      records.push({ date: today, maxLen: len });
+    }
+    BT.set('digit', records);
+    BT.reportScore('digit', { len: len });
+    listRecords();
+    refreshStats();
+  }
+
+  function refreshStats(){
+    var best = 0;
+    records.forEach(function(r){ if(r.maxLen > best) best = r.maxLen; });
+    document.getElementById('best').textContent = best ? best + '位' : '--';
+    var today = BT.todayKey();
+    var tr = records.filter(function(r){ return r.date === today; })[0];
+    document.getElementById('todayBest').textContent = tr ? tr.maxLen + '位' : '--';
+    document.getElementById('days').textContent = records.length;
+  }
+
+  function listRecords(){
+    var box = document.getElementById('recordList');
+    if(!records.length){ box.innerHTML = '<div class="empty">完成一轮后自动保存</div>'; return; }
+    var sorted = records.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).slice(0, 14);
+    box.innerHTML = sorted.map(function(r){
+      return '<div class="record-item"><span>' + r.date + '</span><span>最大倒背 <b>' + r.maxLen + ' 位</b></span></div>';
+    }).join('');
+  }
+
+  /* ---- 输入 ---- */
+  function press(k){
+    if(phase !== 'answering') return;
+    if(k === 'del'){ answer = answer.slice(0, -1); }
+    else if(k === 'ok'){ submit(); return; }
+    else if(answer.length < curLen + 3){ answer += k; }
+    renderAnswer();
+  }
+
+  el.pad.addEventListener('click', function(e){
+    var b = e.target.closest('.key');
+    if(b) press(b.dataset.k);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(phase !== 'answering') return;
+    if(/^[0-9]$/.test(e.key)) press(e.key);
+    else if(e.key === 'Backspace'){ e.preventDefault(); press('del'); }
+    else if(e.key === 'Enter') press('ok');
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#modeSeg button'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      mode = b.dataset.mode;
+      reset();
+    };
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(b){
+    b.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll('.chip'), function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      memMs = +b.dataset.speed;
+    };
+  });
+
+  function reset(){
+    clearTimers();
+    phase = 'idle';
+    curLen = mode === 'back' ? 3 : 4;
+    el.curLen.textContent = curLen;
+    el.card.className = 'digit-card idle pop';
+    el.card.textContent = '准备好就开始';
+    el.status.innerHTML = '当前目标 <span class="strong" id="curLen">' + curLen + '</span> 位 · 答对升级，答错降一档';
+    el.btnStart.textContent = '开始本轮';
+    el.btnStart.disabled = false;
+    answer = '';
+    renderAnswer();
+    renderLadder();
+  }
+
+  el.btnStart.onclick = start;
+  // 重置时 status 内的 curLen 会被替换，重新绑定
+  var statusObserver = new MutationObserver(function(){
+    var c = document.getElementById('curLen');
+    if(c) { el.curLen = c; c.textContent = curLen; }
+  });
+  statusObserver.observe(el.status, { childList: true });
+
+  reset();
+  refreshStats();
+  listRecords();
+})();
+</script>
+</body>
+</html>

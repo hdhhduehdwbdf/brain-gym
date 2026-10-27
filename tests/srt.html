@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>反应速度 · 简单反应时</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.rt-stage{
+  height:clamp(230px,58vw,290px);border-radius:20px;margin:14px 0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;transition:background .15s;position:relative;
+  border:1px solid var(--line2);
+}
+.rt-stage.wait{background:linear-gradient(160deg,#3A2230,#2A1826);border-color:rgba(229,72,77,.35)}
+.rt-stage.go{background:linear-gradient(160deg,#1C5A40,#164B36);border-color:rgba(52,201,139,.5)}
+.rt-stage.idle{background:var(--card)}
+.rt-stage .big-word{font-size:32px;font-weight:900;letter-spacing:3px}
+.rt-stage .sub-word{font-size:13px;color:var(--muted);margin-top:8px}
+.rt-last{font-size:15px;color:var(--muted);text-align:center;min-height:22px;margin:4px 0}
+.rt-last b{color:var(--text);font-variant-numeric:tabular-nums}
+
+.trial-dots{display:flex;gap:5px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+.trial-dots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.12)}
+.trial-dots i.ok{background:var(--green)}
+.trial-dots i.slow{background:var(--amber)}
+.trial-dots i.miss{background:var(--rose)}
+.trial-dots i.now{background:var(--blue);transform:scale(1.35)}
+
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">反应速度</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    等<b style="color:var(--green)">绿屏</b>一亮就点——共 8 轮，抢点判重来
+  </p>
+
+  <div class="rt-stage idle" id="stage">
+    <div class="big-word" id="bigWord">点击开始</div>
+    <div class="sub-word" id="subWord">第 1 轮共 8 轮</div>
+  </div>
+
+  <div class="rt-last" id="rtLast">等待开始</div>
+  <div class="trial-dots" id="dots"></div>
+
+  <div class="exp-note">
+    <b>实验来源：</b>简单反应时（Donders 1868 年起的心理计时法）——人类视觉简单反应平均约 250ms，是最基础的"神经系统速度"指标。<br>
+    <b>练什么：</b>基础反应速度 + 手眼协调。睡眠不足时这项会明显变慢，可以当"今天脑子在不在线"的快速体检。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最快均值</div><div class="value" id="bestAvg">--</div></div>
+    <div class="stat"><div class="label">本次均值</div><div class="value" id="thisAvg">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">标准参考：视觉简单反应 &lt; 250ms 为快 · &gt; 350ms 建议先补觉</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var N_TRIALS = 8;
+  var WAIT_MIN = 1200, WAIT_MAX = 3200;
+
+  var el = {
+    stage: document.getElementById('stage'),
+    big: document.getElementById('bigWord'),
+    sub: document.getElementById('subWord'),
+    dots: document.getElementById('dots')
+  };
+
+  var phase = 'idle'; // idle | wait | go
+  var trial = 0;
+  var tGo = 0;
+  var waitTimer = null;
+  var results = []; // {rt, premature, timeout}
+
+  function renderDots(){
+    var html = '';
+    for(var i=0;i<N_TRIALS;i++){
+      var r = results[i];
+      var cls = r == null ? (i === trial && phase !== 'idle' ? 'now' : '') :
+        r.premature ? 'now' : r.slow ? 'slow' : 'ok';
+      if(r && r.premature) cls = 'now';
+      html += '<i class="' + cls + '"></i>';
+    }
+    el.dots.innerHTML = html;
+  }
+
+  function startRound(){
+    results = [];
+    trial = 0;
+    phase = 'wait';
+    el.stage.className = 'rt-stage wait';
+    el.big.textContent = '等待…';
+    el.sub.textContent = '绿屏一亮就点';
+    document.getElementById('rtLast').textContent = '等待信号';
+    renderDots();
+    scheduleGo();
+  }
+
+  function scheduleGo(){
+    clearTimeout(waitTimer);
+    var delay = WAIT_MIN + Math.random() * (WAIT_MAX - WAIT_MIN);
+    waitTimer = setTimeout(function(){
+      phase = 'go';
+      tGo = performance.now();
+      el.stage.className = 'rt-stage go';
+      el.big.textContent = '点！';
+      el.sub.textContent = '';
+    }, delay);
+  }
+
+  function tap(){
+    if(phase === 'idle'){ startRound(); return; }
+    if(phase === 'wait'){
+      // 抢跑
+      clearTimeout(waitTimer);
+      phase = 'wait';
+      results.push({ rt: null, premature: true });
+      document.getElementById('rtLast').innerHTML = '<span style="color:var(--rose)">抢跑了！等绿屏再点</span>';
+      renderDots();
+      scheduleGo();
+      return;
+    }
+    if(phase === 'go'){
+      var rt = performance.now() - tGo;
+      results.push({ rt: rt, premature: false });
+      trial++;
+      document.getElementById('rtLast').innerHTML = '<b>' + Math.round(rt) + 'ms</b>' +
+        (rt < 200 ? ' · 快如闪电' : rt < 280 ? ' · 很快' : rt < 350 ? ' · 正常' : ' · 有点慢');
+      renderDots();
+      if(trial >= N_TRIALS){ finish(); return; }
+      phase = 'wait';
+      el.stage.className = 'rt-stage wait';
+      el.big.textContent = '等待…';
+      el.sub.textContent = '第 ' + (trial+1) + '/' + N_TRIALS + ' 轮';
+      scheduleGo();
+    }
+  }
+
+  function meanOk(){
+    var oks = results.filter(function(r){ return !r.premature && r.rt != null; });
+    if(!oks.length) return null;
+    return oks.reduce(function(a,b){ return a+b.rt; },0) / oks.length;
+  }
+
+  function finish(){
+    phase = 'idle';
+    clearTimeout(waitTimer);
+    var avg = meanOk();
+    var nPrem = results.filter(function(r){ return r.premature; }).length;
+
+    var g = avg == null ? '—' :
+      avg < 240 ? { t:'神经反应极快', c:'var(--green)' } :
+      avg < 300 ? { t:'快于平均', c:'var(--blue)' } :
+      avg < 380 ? { t:'正常范围', c:'var(--blue)' } : { t:'偏慢，可能累了', c:'var(--amber)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">平均反应时</div>';
+    if(avg != null){
+      html += '<div class="big" style="color:' + g.c + '">' + Math.round(avg) + '<span style="font-size:18px">ms</span></div>';
+    }else{
+      html += '<div class="big">--</div>';
+    }
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">8 轮 · 抢跑 ' + nPrem + ' 次</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再测一轮</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); startRound(); };
+    document.getElementById('ovClose').onclick = function(){
+      ov.remove();
+      el.stage.className = 'rt-stage idle';
+      el.big.textContent = '点击开始';
+      el.sub.textContent = '第 1 轮共 8 轮';
+    };
+
+    var record = { rt: avg != null ? Math.round(avg) : null, premature: nPrem };
+    BT.log('srt', record);
+    if(BT.reportScore) BT.reportScore('srt', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'srt'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.rt != null && (best === null || e.rt < best)) best = e.rt;
+    });
+    document.getElementById('bestAvg').textContent = best != null ? best + 'ms' : '--';
+    if(last && last.rt) document.getElementById('thisAvg').textContent = last.rt + 'ms';
+  }
+
+  el.stage.addEventListener('click', tap);
+  document.addEventListener('keydown', function(e){
+    if(e.code === 'Space'){ e.preventDefault(); tap(); }
+  });
+  renderDots();
+})();
+</script>
+</body>
+</html>

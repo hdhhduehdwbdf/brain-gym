@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D101F">
+<title>Stroop 色词干扰 · 抑制控制</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+.word-stage{
+  height:clamp(180px,46vw,240px);display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  border-radius:20px;margin:14px 0;
+}
+.stroop-word{
+  font-size:clamp(44px,15vw,64px);font-weight:900;letter-spacing:6px;
+  text-shadow:0 4px 24px rgba(0,0,0,.4);animation:popIn .2s;
+}
+.ink-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+.ink-btn{
+  padding:20px 0;border:none;border-radius:15px;font-size:17px;font-weight:800;
+  color:#fff;cursor:pointer;font-family:inherit;transition:transform .1s,opacity .15s;
+  box-shadow:0 6px 18px rgba(0,0,0,.3);user-select:none;
+}
+.ink-btn:active{transform:scale(.93)}
+.ink-btn:disabled{opacity:.35}
+.prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:12px 0}
+.prog-bar i{display:block;height:100%;background:var(--blue);width:0;transition:width .3s}
+.feedback{height:26px;text-align:center;font-size:15px;font-weight:700;margin:4px 0}
+.feedback.ok{color:var(--green)}
+.feedback.no{color:var(--rose)}
+.exp-note{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
+}
+.exp-note b{color:var(--text)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="topbar">
+    <a class="back" href="../index.html">←</a>
+    <div class="tb-title">Stroop 色词干扰</div>
+    <a class="tb-link" href="../progress.html">成绩</a>
+  </div>
+
+  <p class="sub" style="text-align:center;line-height:1.7;margin-bottom:4px">
+    屏幕出现一个<b style="color:var(--text)">颜色字</b>——别管字义，只点<b style="color:var(--text)">字的颜色</b>
+  </p>
+
+  <div class="word-stage">
+    <div class="stroop-word" id="word" style="color:var(--faint);font-size:26px;letter-spacing:2px">准备</div>
+  </div>
+
+  <div class="feedback" id="fb"></div>
+  <div class="prog-bar"><i id="prog"></i></div>
+
+  <div class="ink-btns" id="inkBtns">
+    <button class="ink-btn" data-ink="red"   style="background:#E5484D">红</button>
+    <button class="ink-btn" data-ink="blue"  style="background:#3B6FE0">蓝</button>
+    <button class="ink-btn" data-ink="green" style="background:#2FA977">绿</button>
+    <button class="ink-btn" data-ink="amber" style="background:#E8A03C">黄</button>
+  </div>
+
+  <button class="btn btn-primary btn-block" id="btnStart" style="margin-top:14px">开始 · 共 20 题</button>
+
+  <div class="exp-note">
+    <b>实验来源：</b>Stroop 效应（1935）——读字义是自动加工，认颜色需要主动抑制，所以"红"字印成绿色时你会变慢。<br>
+    <b>练什么：</b>干扰控制。这个"慢了多少毫秒"就是抑制能力的直接刻度，开会时忍住不说、接话前停半拍，用的都是同一块脑区。
+  </div>
+
+  <div class="section-title">成绩</div>
+  <div class="stat-grid">
+    <div class="stat"><div class="label">最小干扰量</div><div class="value" id="bestInter">--</div></div>
+    <div class="stat"><div class="label">本次正确率</div><div class="value" id="thisAcc">--</div></div>
+    <div class="stat"><div class="label">测试次数</div><div class="value" id="sessions">0</div></div>
+  </div>
+
+  <footer class="page-foot">每次 20 题约 40 秒 · 建议每天 2-3 组</footer>
+</main>
+
+<script src="../assets/app.js"></script>
+<script src="../assets/sync.js"></script>
+<script>
+(function(){
+  var COLORS = {
+    red:   { hex:'#E5484D', name:'红' },
+    blue:  { hex:'#3B6FE0', name:'蓝' },
+    green: { hex:'#2FA977', name:'绿' },
+    amber: { hex:'#E8A03C', name:'黄' }
+  };
+  var N_TRIALS = 20;
+
+  var el = {
+    word: document.getElementById('word'),
+    fb: document.getElementById('fb'),
+    prog: document.getElementById('prog')
+  };
+
+  var trials = [];
+  var idx = -1;
+  var congruentRT = [];
+  var incongruentRT = [];
+  var correct = 0;
+  var tShow = 0;
+  var locked = false;
+
+  function buildTrials(){
+    // 一半一致（字义=颜色），一半不一致
+    var arr = [];
+    var keys = Object.keys(COLORS);
+    for(var i=0;i<N_TRIALS/2;i++){
+      var c1 = keys[Math.floor(Math.random()*4)];
+      arr.push({ text: COLORS[c1].name, ink: c1, cong: true });
+      var text = keys[Math.floor(Math.random()*4)];
+      var ink = keys[Math.floor(Math.random()*4)];
+      // 保证不一致
+      while(ink === text) ink = keys[Math.floor(Math.random()*4)];
+      arr.push({ text: COLORS[text].name, ink: ink, cong: false });
+    }
+    // 洗牌
+    for(var j=arr.length-1;j>0;j--){
+      var k = Math.floor(Math.random()*(j+1));
+      var t = arr[j]; arr[j]=arr[k]; arr[k]=t;
+    }
+    return arr;
+  }
+
+  function start(){
+    trials = buildTrials();
+    idx = -1; correct = 0;
+    congruentRT = []; incongruentRT = [];
+    document.getElementById('btnStart').style.display = 'none';
+    Array.prototype.forEach.call(document.querySelectorAll('.ink-btn'), function(b){ b.disabled = false; });
+    nextTrial();
+  }
+
+  function nextTrial(){
+    idx++;
+    if(idx >= N_TRIALS){ finish(); return; }
+    var t = trials[idx];
+    el.word.textContent = t.text;
+    el.word.style.color = COLORS[t.ink].hex;
+    el.word.style.fontSize = '';
+    el.word.style.letterSpacing = '';
+    el.fb.textContent = '';
+    el.fb.className = 'feedback';
+    el.prog.style.width = (idx / N_TRIALS * 100) + '%';
+    tShow = performance.now();
+    locked = false;
+  }
+
+  function answer(ink){
+    if(locked || idx < 0 || idx >= N_TRIALS) return;
+    locked = true;
+    var t = trials[idx];
+    var rt = performance.now() - tShow;
+    if(ink === t.ink){
+      correct++;
+      (t.cong ? congruentRT : incongruentRT).push(rt);
+      el.fb.className = 'feedback ok';
+      el.fb.textContent = '✓ ' + Math.round(rt) + 'ms';
+    }else{
+      el.fb.className = 'feedback no';
+      el.fb.textContent = '✗ 点错了';
+      if(navigator.vibrate) navigator.vibrate(40);
+    }
+    setTimeout(nextTrial, 350);
+  }
+
+  function mean(a){ return a.length ? a.reduce(function(x,y){ return x+y; },0)/a.length : null; }
+
+  function finish(){
+    Array.prototype.forEach.call(document.querySelectorAll('.ink-btn'), function(b){ b.disabled = true; });
+    var mc = mean(congruentRT), mi = mean(incongruentRT);
+    var interference = (mc != null && mi != null) ? mi - mc : null;
+    var acc = correct / N_TRIALS;
+
+    var g = interference == null ? '数据不足' :
+      interference < 40 ? { t:'抑制力强', c:'var(--green)' } :
+      interference < 90 ? { t:'正常水平', c:'var(--blue)' } :
+      interference < 100 ? { t:'中等', c:'var(--amber)' } : { t:'容易受干扰', c:'var(--rose)' };
+
+    var html = '<div class="overlay"><div class="overlay-card">';
+    html += '<div class="sub">Stroop 干扰量</div>';
+    if(interference != null){
+      html += '<div class="big" style="color:' + g.c + '">' + Math.round(interference) + '<span style="font-size:18px">ms</span></div>';
+    }else{
+      html += '<div class="big">--</div>';
+    }
+    html += '<div class="grade" style="color:' + g.c + '">' + g.t + '</div>';
+    html += '<div class="sub2">正确率 ' + Math.round(acc*100) + '% · 一致 ' + (mc!=null?Math.round(mc):'--') + 'ms vs 不一致 ' + (mi!=null?Math.round(mi):'--') + 'ms</div>';
+    html += '<div class="overlay-actions">';
+    html += '<button class="btn btn-primary btn-block" id="ovAgain">再测一组</button>';
+    html += '<button class="btn btn-ghost btn-block" id="ovClose">完成</button>';
+    html += '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    var ov = document.querySelector('.overlay');
+    document.getElementById('ovAgain').onclick = function(){ ov.remove(); start(); };
+    document.getElementById('ovClose').onclick = function(){ ov.remove(); resetIdle(); };
+
+    var record = { interference: interference, accuracy: acc, mc: mc, mi: mi };
+    BT.log('stroop', record);
+    if(BT.reportScore) BT.reportScore('stroop', record);
+    refreshStats(record);
+    if(navigator.vibrate) navigator.vibrate([20,40,20]);
+  }
+
+  function resetIdle(){
+    el.word.textContent = '点击开始';
+    el.word.style.color = 'var(--faint)';
+    el.word.style.fontSize = '26px';
+    el.fb.textContent = '';
+    el.prog.style.width = '0';
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStart').textContent = '再测一组 · 共 20 题';
+  }
+
+  function refreshStats(last){
+    var acts = BT.get('activity', []).filter(function(a){ return a.testId === 'stroop'; });
+    document.getElementById('sessions').textContent = acts.length;
+    var best = null;
+    acts.forEach(function(a){
+      var e = a.extra || {};
+      if(e.interference != null && (best === null || e.interference < best)) best = e.interference;
+    });
+    document.getElementById('bestInter').textContent = best != null ? Math.round(best) + 'ms' : '--';
+    if(last){
+      document.getElementById('thisAcc').textContent = Math.round(last.accuracy*100) + '%';
+    }
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.ink-btn'), function(b){
+    b.addEventListener('click', function(){ answer(b.dataset.ink); });
+  });
+
+  // 键盘快捷键（桌面）
+  document.addEventListener('keydown', function(e){
+    var map = { '1':'red','2':'blue','3':'green','4':'amber' };
+    if(map[e.key]) answer(map[e.key]);
+  });
+
+  document.getElementById('btnStart').onclick = start;
+  refreshStats();
+})();
+</script>
+</body>
+</html>
