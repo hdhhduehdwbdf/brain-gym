@@ -130,6 +130,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -223,13 +224,13 @@
 
     var html = '<div class="overlay"><div class="overlay-card">';
     if(ok){
-      html += '<div class="big" style="color:var(--green)">✓</div>';
+      html += '<div class="big acc-green">' + BT.icon('check', 44) + '</div>';
       html += '<div class="grade" style="color:var(--green)">' + curLen + ' 位通过</div>';
       html += '<div class="sub2">原数字 ' + target + ' · 你的答案 ' + answer + '</div>';
       html += '<div class="overlay-actions"><button class="btn btn-primary btn-block" id="ovNext">挑战 ' + (curLen+1) + ' 位</button>' +
               '<button class="btn btn-ghost btn-block" id="ovClose">先歇一下</button></div>';
     }else{
-      html += '<div class="big" style="color:var(--rose)">✗</div>';
+      html += '<div class="big acc-rose">' + BT.icon('x', 44) + '</div>';
       html += '<div class="grade" style="color:var(--rose)">正确答案 ' + correct + '</div>';
       html += '<div class="sub2">原数字 ' + target + ' · 你的答案 ' + answer + '</div>';
       html += '<div class="overlay-actions"><button class="btn btn-primary btn-block" id="ovNext">再来一次 ' + curLen + ' 位</button>' +

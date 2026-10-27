@@ -138,6 +138,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -273,7 +274,7 @@
       row.classList.add(ok ? 'ok' : 'no');
       var mark = document.createElement('span');
       mark.className = 'mark';
-      mark.textContent = ok ? '✓' : '✗';
+      mark.innerHTML = ok ? BT.icon('check', 15) : BT.icon('x', 15);
       row.appendChild(mark);
       if(!ok){
         var ans = document.createElement('div');

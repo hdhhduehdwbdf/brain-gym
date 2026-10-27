@@ -83,6 +83,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -162,10 +163,10 @@
       correct++;
       (t.cong ? congruentRT : incongruentRT).push(rt);
       el.fb.className = 'feedback ok';
-      el.fb.textContent = '✓ ' + Math.round(rt) + 'ms';
+      el.fb.innerHTML = BT.icon('check', 14) + ' ' + Math.round(rt) + 'ms';
     }else{
       el.fb.className = 'feedback no';
-      el.fb.textContent = '✗ 点错了';
+      el.fb.innerHTML = BT.icon('x', 14) + ' 点错了';
       if(navigator.vibrate) navigator.vibrate(40);
     }
     setTimeout(nextTrial, 350);

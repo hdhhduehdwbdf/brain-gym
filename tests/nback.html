@@ -78,7 +78,7 @@
   <div class="trial-dots" id="dots"></div>
 
   <div class="nb-ctrl">
-    <button class="nb-btn match" id="btnMatch">匹配 ✓（与 N 步前相同）</button>
+    <button class="nb-btn match" id="btnMatch">匹配（与 N 步前相同）</button>
   </div>
   <div class="level-up" id="levelUp"></div>
 
@@ -100,6 +100,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -230,7 +231,7 @@
     // 升降级建议
     var msg = '';
     var nextN = n;
-    if(acc >= 0.85 && misses <= 1 && n < 4){ nextN = n+1; msg = '🎯 正确率 ' + Math.round(acc*100) + '%，建议升到 ' + nextN + '-back'; }
+    if(acc >= 0.85 && misses <= 1 && n < 4){ nextN = n+1; msg = '正确率 ' + Math.round(acc*100) + '%，建议升到 ' + nextN + '-back'; }
     else if(acc < 0.6 && n > 1){ nextN = n-1; msg = '正确率偏低，建议退回 ' + nextN + '-back 打牢'; }
     else { msg = '保持 ' + n + '-back 继续练'; }
 

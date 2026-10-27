@@ -104,6 +104,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -206,7 +207,7 @@
     running = false;
     setOrb('');
     setWord('');
-    el.count.textContent = '✓';
+    el.count.innerHTML = BT.icon('check', 44); el.count.style.color='var(--green)';
     el.phaseLabel.textContent = '完成 ' + preset().rounds + ' 轮 · 感受一下此刻的状态';
 
     var p = preset();

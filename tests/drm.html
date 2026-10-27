@@ -58,7 +58,7 @@
 
   <div class="judge-row" id="judgeRow" style="display:none">
     <button class="judge-btn j-new" id="btnNew">没出现过</button>
-    <button class="judge-btn j-old" id="btnOld">出现过 ✓</button>
+    <button class="judge-btn j-old" id="btnOld">出现过</button>
   </div>
 
   <button class="btn btn-primary btn-block" id="btnStart">开始</button>
@@ -87,6 +87,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -215,7 +216,7 @@
       var cls = t.type === 'crit' ? 'critical' : t.type === 'old' ? 'old' : 'new';
       return '<div class="rj-item"><span class="rj-tag ' + cls + '">' + tag + '</span>' +
         '<span class="rj-word">' + t.w + '</span>' +
-        '<span class="rj-res ' + (ok ? 'res-ok' : 'res-bad') + '">' + (ok ? '✓ 正确' : '✗ 错误') + '</span></div>';
+        '<span class="rj-res ' + (ok ? 'res-ok' : 'res-bad') + '">' + (ok ? '正确' : '错误') + '</span></div>';
     }).join('');
     el.resultArea.style.display = 'block';
 

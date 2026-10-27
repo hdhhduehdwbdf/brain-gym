@@ -73,7 +73,7 @@
   </div>
 
   <div class="gg-btns">
-    <button class="gg-btn go-b" id="btnGo">GO ✓</button>
+    <button class="gg-btn go-b" id="btnGo">GO</button>
     <button class="gg-btn no-b" id="btnWait">（红圆时别点）</button>
   </div>
 
@@ -95,6 +95,7 @@
 </main>
 
 <script src="../assets/app.js"></script>
+<script src="../assets/icons.js"></script>
 <script src="../assets/sync.js"></script>
 <script>
 (function(){
@@ -215,7 +216,7 @@
     clearTimeout(trialTimer);
     streakN++;
     el.streak.textContent = streakN;
-    showStim('忍住 ✓', 'ok');
+    showStim('忍住了', 'ok');
     isiTimer = setTimeout(nextTrial, 350);
   }
 
