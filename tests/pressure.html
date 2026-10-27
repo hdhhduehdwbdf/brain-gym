@@ -3,58 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0D101F">
+<meta name="theme-color" content="#F4F6FC">
 <title>表达高压舱 · 被点名不再空白</title>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
 .qcard{
-  background:linear-gradient(155deg,#26203F,#191C33);
-  border:1px solid rgba(139,124,255,.28);border-radius:20px;padding:22px 20px;
+  background:linear-gradient(155deg,rgba(255,255,255,.85),rgba(248,246,255,.6));
+  border:1px solid var(--line);border-radius:22px;padding:22px 20px;
   position:relative;overflow:hidden;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  box-shadow:var(--shadow);
 }
 .qcard::after{
   content:"";position:absolute;right:-40px;top:-40px;width:130px;height:130px;border-radius:50%;
-  background:radial-gradient(circle,rgba(139,124,255,.18),transparent 70%);
+  background:radial-gradient(circle,rgba(124,92,232,.14),transparent 70%);
 }
 .q-label{font-size:12px;color:var(--violet);font-weight:700;letter-spacing:1px;margin-bottom:10px}
-.q-text{font-size:19px;font-weight:700;line-height:1.6}
+.q-text{font-size:19px;font-weight:700;line-height:1.6;color:var(--text)}
 .q-scene{font-size:12.5px;color:var(--muted);margin-top:10px}
 
 .big-timer{
   text-align:center;font-size:clamp(56px,18vw,76px);font-weight:800;
   font-variant-numeric:tabular-nums;line-height:1.05;margin:16px 0 2px;
-  transition:color .3s;
+  transition:color .3s;color:var(--text);
 }
 .big-timer.warn{color:var(--amber)}
 .big-timer.danger{color:var(--rose);animation:pulse 1s infinite}
 .timer-label{text-align:center;font-size:13.5px;color:var(--muted);min-height:20px}
 
-.progress-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin:14px 0}
-.progress-bar i{display:block;height:100%;background:linear-gradient(90deg,#5B8CFF,#8B7CFF);width:0;transition:width .2s linear}
+.progress-bar{height:5px;background:rgba(28,28,60,.08);border-radius:3px;overflow:hidden;margin:14px 0}
+.progress-bar i{display:block;height:100%;background:linear-gradient(90deg,#3E6FE8,#7C5CE8);width:0;transition:width .2s linear}
 
 .struct{
   display:flex;gap:8px;margin:14px 0 0;
 }
 .struct-item{
-  flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  flex:1;background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:13px;
   padding:10px 8px;text-align:center;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
 }
 .struct-item .k{font-size:11px;color:var(--faint);margin-bottom:3px}
-.struct-item .v{font-size:13px;font-weight:700}
-.struct-item.on{border-color:rgba(91,140,255,.5);background:rgba(91,140,255,.1)}
+.struct-item .v{font-size:13px;font-weight:700;color:var(--text2)}
+.struct-item.on{border-color:rgba(90,120,235,.55);background:rgba(90,120,235,.12)}
+.struct-item.on .v{color:var(--blue)}
 
 .rate-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .rate-row .lbl{font-size:13px;color:var(--muted);flex:0 0 72px}
 .stars{display:flex;gap:6px;flex:1}
 .stars button{
-  flex:1;padding:9px 0;border-radius:10px;border:1px solid var(--line2);background:var(--card2);
+  flex:1;padding:9px 0;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.65);
   color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;
 }
-.stars button.sel{background:rgba(91,140,255,.2);border-color:rgba(91,140,255,.6);color:#A8C0FF}
+.stars button.sel{background:rgba(90,120,235,.14);border-color:rgba(90,120,235,.55);color:var(--blue)}
 
 .tips-box{
-  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  background:var(--glass);border:1px solid var(--line);border-radius:16px;
   padding:14px 16px;font-size:13px;color:var(--muted);line-height:1.85;margin-top:16px;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
 }
 .tips-box b{color:var(--text)}
 .tips-box .em{color:var(--amber)}

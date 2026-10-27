@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0D101F">
+<meta name="theme-color" content="#F4F6FC">
 <title>符号译码 · 加工速度</title>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
@@ -13,7 +13,7 @@
 .key-item .dig{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:4px;margin:0 8px}
 
 .sd-stage{
-  background:linear-gradient(160deg,#1E2445,#171B36);border:1px solid var(--line2);
+  background:linear-gradient(160deg,rgba(255,255,255,.72),rgba(255,255,255,.45));border:1px solid var(--line)
   border-radius:20px;padding:18px 14px;margin-bottom:12px;
 }
 .sd-current{text-align:center;margin-bottom:16px}
@@ -22,8 +22,8 @@
 
 .sd-choices{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .sd-ch{
-  padding:18px 0;border:none;border-radius:14px;background:var(--card2);
-  border:1px solid var(--line2);color:var(--text);font-size:24px;font-weight:800;
+  padding:18px 0;border:none;border-radius:14px;background:rgba(255,255,255,.65);
+  border:1px solid var(--line);color:var(--text);font-size:24px;font-weight:800;
   cursor:pointer;font-family:inherit;transition:transform .1s,background .12s;
 }
 .sd-ch:active{transform:scale(.93)}
@@ -37,11 +37,11 @@
 .sd-timer b{
   font-size:26px;color:var(--text);font-variant-numeric:tabular-nums;font-weight:800;
 }
-.prog-bar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.prog-bar{height:5px;background:rgba(28,28,60,.08);border-radius:3px;overflow:hidden;margin-bottom:12px}
 .prog-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));width:100%}
 
 .exp-note{
-  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  background:var(--glass);border:1px solid var(--line);border-radius:14px;
   padding:13px 16px;font-size:13px;color:var(--muted);line-height:1.75;margin-top:14px;
 }
 .exp-note b{color:var(--text)}

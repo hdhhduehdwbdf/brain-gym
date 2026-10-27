@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0D101F">
+<meta name="theme-color" content="#F4F6FC">
 <title>脑力健身房</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23172340'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%235B8CFF' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%238B7CFF'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/style.css">
@@ -15,9 +15,11 @@
 
 .streak-card{
   display:flex;align-items:center;gap:14px;
-  background:linear-gradient(135deg,#1E2445,#191E38);
-  border:1px solid rgba(120,140,255,.25);border-radius:18px;
+  background:linear-gradient(135deg,rgba(255,255,255,.75),rgba(255,255,255,.5));
+  border:1px solid var(--line);border-radius:20px;
   padding:15px 18px;margin-top:16px;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  box-shadow:var(--shadow);
 }
 .streak-flame{font-size:30px;line-height:1}
 .streak-info{flex:1}
@@ -25,34 +27,41 @@
 .streak-num span{font-size:13px;font-weight:600;color:var(--muted);margin-left:3px}
 .streak-sub{font-size:12px;color:var(--muted);margin-top:2px}
 .heat{display:flex;gap:3px;align-items:flex-end}
-.heat i{width:9px;border-radius:3px;background:rgba(255,255,255,.08);transition:.2s}
+.heat i{width:9px;border-radius:3px;background:rgba(28,28,60,.08);transition:.2s}
 
 /* ---- 对话框 ---- */
 .chat-card{
-  background:var(--card);border:1px solid var(--line2);border-radius:20px;
-  padding:16px;margin-top:20px;box-shadow:0 12px 32px rgba(0,0,0,.25);
+  background:var(--grad-card);border:1px solid var(--line);border-radius:22px;
+  padding:16px;margin-top:20px;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  box-shadow:var(--shadow-lg);
 }
-.chat-card h2{font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:7px}
+.chat-card h2{font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:7px;color:var(--text)}
 .chat-card h2 .live{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
 .chat-sub{font-size:12.5px;color:var(--muted);margin-bottom:12px}
 
 .chat-log{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-height:44px;max-height:300px;overflow-y:auto}
 .msg{max-width:86%;padding:11px 14px;border-radius:16px;font-size:14px;line-height:1.65;animation:fadeUp .3s}
-.msg.bot{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:6px;align-self:flex-start;color:#D9DEF0}
-.msg.user{background:linear-gradient(135deg,#3D5BD9,#5B4BD9);border-bottom-right-radius:6px;align-self:flex-end;color:#fff}
+.msg.bot{
+  background:rgba(255,255,255,.75);border:1px solid var(--line);
+  border-bottom-left-radius:6px;align-self:flex-start;color:var(--text2);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+}
+.msg.user{background:linear-gradient(135deg,#3E6FE8,#7C5CE8);border-bottom-right-radius:6px;align-self:flex-end;color:#fff;box-shadow:0 6px 18px rgba(90,110,235,.3)}
 .msg .rec-cards{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 
 .rec-card{
-  display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);
-  border:1px solid rgba(120,140,255,.3);border-radius:13px;padding:11px 13px;
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:14px;padding:11px 13px;
   text-decoration:none;transition:.15s;
+  box-shadow:0 3px 12px rgba(60,70,140,.07);
 }
-.rec-cards .rec-card{background:var(--card);border-color:var(--line2)}
+.rec-cards .rec-card{background:rgba(255,255,255,.72);border-color:var(--line)}
 .rec-card:active{transform:scale(.97)}
 .rec-icon{
-  width:40px;height:40px;flex:0 0 40px;border-radius:11px;
+  width:40px;height:40px;flex:0 0 40px;border-radius:12px;
   display:flex;align-items:center;justify-content:center;font-size:20px;
-  background:linear-gradient(135deg,rgba(91,140,255,.2),rgba(139,124,255,.2));
+  background:linear-gradient(135deg,rgba(90,120,235,.14),rgba(150,110,235,.14));
 }
 .rec-body{flex:1;min-width:0}
 .rec-name{font-size:14.5px;font-weight:700;color:var(--text)}
@@ -60,38 +69,41 @@
 .rec-go{color:var(--blue);font-size:15px;flex:0 0 auto}
 
 .chat-input-row{display:flex;gap:9px}
-.chat-input-row .input{flex:1;border-radius:14px}
+.chat-input-row .input{flex:1;border-radius:15px}
 .chat-send{
-  flex:0 0 auto;width:48px;border-radius:14px;border:none;cursor:pointer;
-  background:linear-gradient(135deg,#4A7CFF,#6E5BFF);color:#fff;font-size:18px;
+  flex:0 0 auto;width:50px;border-radius:15px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#3E6FE8,#7C5CE8);color:#fff;font-size:18px;
   display:flex;align-items:center;justify-content:center;transition:transform .12s;font-family:inherit;
+  box-shadow:0 6px 18px rgba(90,110,235,.32);
 }
 .chat-send:active{transform:scale(.93)}
 
 .suggest-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
-.suggest-row .chip{font-size:12px;padding:7px 12px}
+.suggest-row .chip{font-size:12px;padding:8px 13px}
 
 /* ---- 测试宫格 ---- */
 .test-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .test-card{
-  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  background:var(--grad-card);border:1px solid var(--line);border-radius:20px;
   padding:15px 14px;text-decoration:none;color:inherit;
-  display:flex;flex-direction:column;transition:transform .15s,border-color .15s;
+  display:flex;flex-direction:column;transition:transform .15s,box-shadow .2s;
   position:relative;overflow:hidden;
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  box-shadow:var(--shadow);
 }
 .test-card:active{transform:scale(.97)}
 .test-card .t-icon{
   width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;
   font-size:22px;margin-bottom:10px;
 }
-.test-card .t-name{font-size:15.5px;font-weight:800}
+.test-card .t-name{font-size:15.5px;font-weight:800;color:var(--text)}
 .test-card .t-desc{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.55}
 .test-card .t-stat{font-size:11px;color:var(--faint);margin-top:9px;display:flex;justify-content:space-between;align-items:center}
 .test-card .t-stat b{color:var(--muted);font-weight:700}
 .t-arrow{color:var(--faint);font-size:14px}
 .badge-new{
   position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;
-  background:rgba(139,124,255,.22);color:#C3B9FF;padding:3px 8px;border-radius:999px;border:1px solid rgba(139,124,255,.35);
+  background:rgba(124,92,232,.14);color:var(--violet);padding:3px 8px;border-radius:999px;border:1px solid rgba(124,92,232,.3);
 }
 </style>
 </head>
@@ -227,7 +239,7 @@
       <div class="t-desc">小现在 vs 大以后 · 自控</div>
       <div class="t-stat"><span id="s-delay">还没开始</span><span class="t-arrow">→</span></div>
     </a>
-    <a class="test-card" href="progress.html" style="background:linear-gradient(150deg,#1B2140,#171B30)">
+    <a class="test-card" href="progress.html" style="background:linear-gradient(150deg,rgba(255,255,255,.9),rgba(255,255,255,.6))">
       <div class="t-icon" style="background:linear-gradient(135deg,rgba(77,208,225,.22),rgba(77,208,225,.08))">📈</div>
       <div class="t-name">我的成绩</div>
       <div class="t-desc">连击 · 总览 · 各项最佳</div>

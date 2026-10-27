@@ -3,28 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0D101F">
+<meta name="theme-color" content="#F4F6FC">
 <title>舒尔特方格 · 注意力训练</title>
 <link rel="stylesheet" href="../assets/style.css">
 <style>
 .grid-stage{
-  background:linear-gradient(180deg,#1A1F3A,#141830);
-  border:1px solid var(--line2);border-radius:20px;padding:10px;
-  box-shadow:0 16px 40px rgba(0,0,0,.35);
+  background:linear-gradient(160deg,rgba(255,255,255,.72),rgba(255,255,255,.45));
+  border:1px solid var(--line);border-radius:22px;padding:10px;
+  box-shadow:var(--shadow-lg);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   position:relative;overflow:hidden;
 }
 .grid{display:grid;gap:7px;grid-template-columns:repeat(5,1fr)}
 .cell{
   aspect-ratio:1;display:flex;align-items:center;justify-content:center;
-  border:none;border-radius:12px;background:#262C4C;color:#DFE4F2;
+  border:none;border-radius:13px;background:rgba(255,255,255,.85);color:var(--text2);
   font-size:clamp(17px,5.2vw,23px);font-weight:800;font-variant-numeric:tabular-nums;
   cursor:pointer;transition:background .12s,transform .1s,color .12s;
   font-family:inherit;user-select:none;position:relative;
+  box-shadow:0 2px 8px rgba(60,70,140,.08);
 }
 .cell:active{transform:scale(.94)}
-.cell.found{background:#1B2942;color:#3A4568;box-shadow:inset 0 0 0 1px rgba(90,140,255,.12)}
-.cell.next{background:linear-gradient(135deg,#2F9E6E,#34C98B);color:#062018;box-shadow:0 4px 18px rgba(52,201,139,.35)}
-.cell.wrong{background:#5A2233;color:#FF9DAF;animation:shake .3s}
+.cell.found{background:rgba(255,255,255,.4);color:rgba(28,28,60,.28);box-shadow:none}
+.cell.next{background:linear-gradient(135deg,#1FA96B,#34C98B);color:#fff;box-shadow:0 4px 18px rgba(40,180,120,.4)}
+.cell.wrong{background:#FBE3E8;color:var(--rose);animation:shake .3s}
 .cell.size6{font-size:clamp(14px,4.2vw,19px);border-radius:10px}
 .grid.g6{grid-template-columns:repeat(6,1fr);gap:5px}
 
