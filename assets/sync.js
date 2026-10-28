@@ -10,7 +10,7 @@
 (function(){
   if (!window.BT) return;
 
-  var API = '';            // 同源部署：后端就是本站服务器
+  var API = window.BT_API || '';   // 同源为空串；跨域部署时由 assets/config.js 指定后端地址
   var OUTBOX = 'bt:outbox';
   var MIGRATED = 'bt:migrated';
   var online = false;

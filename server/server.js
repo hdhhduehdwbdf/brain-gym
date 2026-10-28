@@ -198,11 +198,15 @@ function migrate(payload) {
 }
 
 /* ---------- HTTP 工具 ---------- */
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*'; // 前端域名，生产建议设为 Pages 域名
 function send(res, status, data) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': CORS_ORIGIN,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type'
   });
   res.end(body);
 }
@@ -227,6 +231,17 @@ function readBody(req) {
 
 /* ---------- API 路由 ---------- */
 async function handleApi(req, res, pathname) {
+  // 跨域预检（GitHub Pages 等外部前端调用时浏览器会先发 OPTIONS）
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400'
+    });
+    return res.end();
+  }
+
   if (req.method === 'GET' && pathname === '/api/health') {
     return send(res, 200, { ok: true, now: Date.now() });
   }
