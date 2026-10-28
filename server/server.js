@@ -27,7 +27,8 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8787;
 const ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(__dirname, 'data');
+// 云端（Render disk）可挂载持久目录：设 DATA_DIR 环境变量则优先使用
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 const MIME = {

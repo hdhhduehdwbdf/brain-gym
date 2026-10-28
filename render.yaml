@@ -1,0 +1,25 @@
+# Render 部署配置（后端 API）
+# Render 会读取此文件自动创建服务：
+#   类型: Web Service
+#   环境: Node
+#   启动: node server/server.js
+services:
+  - type: web
+    name: brain-gym-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: "echo build: nothing to install"
+    startCommand: "node server/server.js"
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: PORT
+        value: 10000
+      - key: CORS_ORIGIN
+        value: "*"
+    disk:
+      name: brain-gym-data
+      mountPath: /data
+      sizeGB: 1
